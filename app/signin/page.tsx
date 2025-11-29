@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Loader2, AlertCircle } from "lucide-react"
-
+import { CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -186,6 +187,17 @@ export default function SignInPage() {
               )}
               Google
             </Button>
+            <CardFooter className="flex justify-center text-sm text-gray-600 pt-4">
+  <p>
+    Not registered?{" "}
+    <Link 
+      href="/signup" 
+      className="font-medium text-gray-900 hover:underline underline-offset-4 transition-all"
+    >
+      Create an account
+    </Link>
+  </p>
+</CardFooter>
           </CardContent>
         </Card>
       </div>
