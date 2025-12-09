@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { Loader2, User, Wrench } from "lucide-react"
-import StudentDashboardPage from "./student"
+import StudentDashboardPage from "./(student)/page"
 
 export default function DashboardPage() {
     const { data: session, isPending } = authClient.useSession()
@@ -14,7 +14,15 @@ export default function DashboardPage() {
         if (!isPending && !session) {
             router.push("/signin")
         }
-    }, [session, isPending, router])
+
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/api/user`, {
+            credentials: "include",
+        }).then(async (res) => {
+            if (res.status === 422) {
+                return router.push("/onboarding?r=/dashboard")
+            }
+        })
+    }, [session, isPending])
 
     if (isPending) {
         return (
@@ -28,5 +36,7 @@ export default function DashboardPage() {
         return null
     }
 
-    return <StudentDashboardPage session={session} />
+    const role = (session.user as unknown as { role?: string }).role
+
+    if (role === "student") return <StudentDashboardPage session={session} />
 }

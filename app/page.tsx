@@ -35,9 +35,6 @@ export default function Home() {
                     <Link href="/signin">
                         <Button className="bg-secondary">Sign In</Button>
                     </Link>
-                    <Link href="/signup">
-                        <Button className="bg-secondary">Sign Up</Button>
-                    </Link>
                 </div>
             </main>
         </div>

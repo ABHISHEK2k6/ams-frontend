@@ -19,7 +19,9 @@ const formSchema = z.object({
   password: z.string().min(1, "Password is required"),
 })
 
-type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
+type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement> & {
+  redirectURL?: string
+}
 
 export function SignInUserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = React.useState(false)
@@ -36,13 +38,12 @@ export function SignInUserAuthForm({ className, ...props }: UserAuthFormProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    setError(null)
-    try {
       const { error } = await authClient.signIn.email({
         email: values.email,
         password: values.password,
-        callbackURL: window.location.origin + "/dashboard",
+        callbackURL: window.location.origin + (props.redirectURL || "/dashboard"),
       })
+    try {
       if (error) {
         setError(error.message || "An error occurred during sign in")
       } else {
@@ -65,7 +66,7 @@ export function SignInUserAuthForm({ className, ...props }: UserAuthFormProps) {
     try {
       const { error } = await authClient.signIn.social({
         provider: "google",
-        callbackURL: window.location.origin + "/dashboard",
+        callbackURL: window.location.origin + (props.redirectURL || "/dashboard"),
       })
       if (error) {
         setError(error.message || "An error occurred during Google sign in")

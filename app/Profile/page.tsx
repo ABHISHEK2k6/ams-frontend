@@ -1,59 +1,40 @@
-// app/profile/page.tsx
-import React from "react";
-import Link from "next/link";
+"use client";
+
 import type { User } from "@/components/ui/profile/profile-form";
 import ProfileForm from "@/components/ui/profile/profile-form";
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-export const metadata = {
-  title: "Profile - AMS",
-};
+export default function ProfilePage() {
+  const { data: session, isPending } = authClient.useSession();
+  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
 
-/**
- * NOTE:
- * - This page no longer uses any demo/mock data.
- * - It expects you to provide a real `user` object (from your auth backend).
- * For now this code shows a safe "You must sign in" state when user is missing.
- */
+  useEffect(() => {
+    if(isPending) return;
+    if(!session) return router.push("/signin?r=/profile");
 
-export default async function ProfilePage() {
-  
-  const user: User | null = null;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/api/user`, {
+      credentials: "include",
+    }).then(async (res) => {
+      if (res.ok) {
+        const response = await res.json();
+        setUser(response.data);
+      }
+      if (res.status === 422) {
+        return router.push("/onboarding?r=/profile");
+      }
+    });
+  }, [session, isPending]);
 
-  if (!user) return signedOutView();
-
-  return signedInView(user);
-}
-
-/* ---------- Helpers ---------- */
-
-function signedOutView() {
-  return (
-    <main className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto py-24 px-6 text-center">
-        <h1 className="text-3xl font-semibold mb-4">Profile</h1>
-        <p className="text-gray-600 mb-6">You must be signed in to view or edit your profile.</p>
-
-        <div className="flex items-center justify-center gap-4">
-          <Link
-            href="/signin"
-            className="rounded-md bg-violet-600 px-4 py-2 text-white hover:bg-violet-700"
-          >
-            Sign in
-          </Link>
-
-          <Link
-            href="/"
-            className="rounded-md border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Back to home
-          </Link>
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function signedInView(user: User) {
+  if (!user) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <div>Loading...</div>
+      </main>
+    );
+  }
   
   return (
     <main className="min-h-screen bg-white">
@@ -68,37 +49,45 @@ function signedInView(user: User) {
           <div className="lg:col-span-1">
             <div className="rounded-2xl border p-6 shadow-sm">
               <div className="flex items-center space-x-4">
-                <div
-                  className="h-16 w-16 rounded-full bg-violet-600 text-white flex items-center justify-center text-lg font-medium"
-                  aria-hidden
-                >
-                  {(user.firstName?.[0] ?? "U").toUpperCase()}
-                </div>
+                {user.user.image ? (
+                  <img
+                    src={user.user.image}
+                    alt={`${user.user.first_name} ${user.user.last_name}`}
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="h-16 w-16 rounded-full bg-violet-600 text-white flex items-center justify-center text-lg font-medium"
+                    aria-hidden
+                  >
+                    {(user.user.first_name[0] ?? "U").toUpperCase()}
+                  </div>
+                )}
 
                 <div>
                   <div className="text-lg font-semibold">
-                    {user.firstName} {user.lastName}
+                    {user.user.first_name} {user.user.last_name}
                   </div>
-                  <div className="text-sm text-gray-500 capitalize">{user.role}</div>
+                  <div className="text-sm text-gray-500 capitalize">{user.user.role}</div>
                 </div>
               </div>
 
               <div className="mt-6 text-sm text-gray-600 space-y-2">
                 <div className="flex">
                   <span className="font-medium w-28">Phone:</span>
-                  <span>{user.phone ?? "—"}</span>
+                  <span>{user.user.phone ?? "—"}</span>
                 </div>
 
                 <div className="flex">
                   <span className="font-medium w-28">Gender:</span>
-                  <span>{user.gender ?? "—"}</span>
+                  <span>{user.user.gender ?? "—"}</span>
                 </div>
 
-                {user.role === "student" && (
+                {user.user.role === "student" && (
                   <>
                     <div className="flex">
                       <span className="font-medium w-28">Admission No:</span>
-                      <span>{user.admNumber ?? "—"}</span>
+                      <span>{user.adm_number ?? "—"}</span>
                     </div>
 
                     <div className="flex">

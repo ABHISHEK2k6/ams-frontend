@@ -29,18 +29,21 @@ function FormField({
 export type Role = "student" | "parent" | "staff" | "other";
 
 export type User = {
-  id?: string;
-  role: Role;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  gender?: "male" | "female" | "other";
+  user: {
+    id?: string;
+    role: Role;
+    first_name: string;
+    last_name: string;
+    phone?: string;
+    image?: string;
+    gender?: "male" | "female" | "other";
+  },
   // student
-  admNumber?: string;
-  admYear?: string;
-  candidateCode?: string;
+  adm_number?: string;
+  adm_year?: number;
+  candidate_code?: string;
   department?: string;
-  dob?: string;
+  date_of_birth?: string;
   // parent
   relation?: string;
   // staff/other
@@ -71,8 +74,14 @@ export default function ProfileForm({
     setUser(initialUser);
   }, [initialUser]);
 
-  const onChange = (k: keyof User, v: any) => {
-    setUser((s) => ({ ...s, [k]: v }));
+  const onChange = (k: keyof User | "user.phone" | "user.gender", v: any) => {
+    if (k === "user.phone") {
+      setUser((s) => ({ ...s, user: { ...s.user, phone: v } }));
+    } else if (k === "user.gender") {
+      setUser((s) => ({ ...s, user: { ...s.user, gender: v } }));
+    } else {
+      setUser((s) => ({ ...s, [k]: v }));
+    }
   };
 
   const onSave = (e?: React.FormEvent) => {
@@ -111,17 +120,17 @@ export default function ProfileForm({
       <Card className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           <FormField label="First Name">
-            <Input value={user.firstName} disabled />
+            <Input value={user.user.first_name} disabled />
           </FormField>
 
           <FormField label="Last Name">
-            <Input value={user.lastName} disabled />
+            <Input value={user.user.last_name} disabled />
           </FormField>
 
           <FormField label="Phone Number">
             <Input
-              value={user.phone || ""}
-              onChange={(e) => onChange("phone", e.target.value)}
+              value={user.user.phone || ""}
+              onChange={(e) => onChange("user.phone", e.target.value)}
               disabled={!editing}
               placeholder="+91 9xxxxxxxxx"
             />
@@ -131,8 +140,8 @@ export default function ProfileForm({
             <div className="relative">
               <select
                 aria-label="Gender"
-                value={user.gender ?? ""}
-                onChange={(e) => onChange("gender", e.target.value || undefined)}
+                value={user.user.gender ?? ""}
+                onChange={(e) => onChange("user.gender", e.target.value || undefined)}
                 disabled={!editing}
                 className={[
                   "h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors",
@@ -166,18 +175,18 @@ export default function ProfileForm({
 
         {/* role-specific fields */}
         <div className="mt-6">
-          {user.role === "student" && (
+          {user.user.role === "student" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
               <FormField label="Admission Number">
-                <Input value={user.admNumber || ""} onChange={(e) => onChange("admNumber", e.target.value)} disabled={!editing} />
+                <Input value={user.adm_number || ""} onChange={(e) => onChange("adm_number", e.target.value)} disabled={!editing} />
               </FormField>
 
               <FormField label="Admission Year">
-                <Input value={user.admYear || ""} onChange={(e) => onChange("admYear", e.target.value)} disabled={!editing} />
+                <Input value={user.adm_year || ""} onChange={(e) => onChange("adm_year", e.target.value)} disabled={!editing} />
               </FormField>
 
               <FormField label="Candidate Code">
-                <Input value={user.candidateCode || ""} onChange={(e) => onChange("candidateCode", e.target.value)} disabled={!editing} />
+                <Input value={user.candidate_code || ""} onChange={(e) => onChange("candidate_code", e.target.value)} disabled={!editing} />
               </FormField>
 
               <FormField label="Department">
@@ -185,12 +194,12 @@ export default function ProfileForm({
               </FormField>
 
               <FormField label="Date of Birth">
-                <Input type="date" value={user.dob || ""} onChange={(e) => onChange("dob", e.target.value)} disabled={!editing} />
+                <Input type="date" value={user.date_of_birth || ""} onChange={(e) => onChange("date_of_birth", e.target.value)} disabled={!editing} />
               </FormField>
             </div>
           )}
 
-          {user.role === "parent" && (
+          {user.user.role === "parent" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
               <FormField label="Relation">
                 <Input value={user.relation || ""} onChange={(e) => onChange("relation", e.target.value)} disabled={!editing} placeholder="Father / Mother / Guardian" />
@@ -198,7 +207,7 @@ export default function ProfileForm({
             </div>
           )}
 
-          {(user.role === "staff" || user.role === "other") && (
+          {(user.user.role != "student" && user.user.role != "parent") && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
               <FormField label="Designation">
                 <Input value={user.designation || ""} onChange={(e) => onChange("designation", e.target.value)} disabled={!editing} />
