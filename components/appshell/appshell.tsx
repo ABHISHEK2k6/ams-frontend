@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "./navbar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Book, CalendarDays, Home, Settings } from "lucide-react"
 import Dock from '@/components/appshell/Dock';
 import { useRouter } from 'next/navigation';
@@ -13,7 +13,13 @@ import Avatar, { genConfig } from 'react-nice-avatar'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, session } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && !session) {
+      router.push('/signin');
+    }
+  }, [isLoading, session]);
 
   const items = [
     { icon: <Home size={18} />, label: 'Home', onClick: () => router.push('/dashboard')  },

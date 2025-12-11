@@ -23,7 +23,7 @@ export default function AuthenticationPage() {
           </div>
         </div>
         <div className="w-full items-center justify-center lg:p-0 lg:h-screen lg:overflow-y-auto">
-          <div className="mx-auto h-full items-center w-full justify-center gap-6 p-4 pt-8 lg:p-8 sm:w-[350px] lg:w-[480px]">
+          <div className="mx-auto h-full items-center w-full justify-center gap-6 p-4 pt-8 lg:p-8 sm:w-87.5 lg:w-120">
             <SignUpUserAuthForm />
           </div>
         </div>

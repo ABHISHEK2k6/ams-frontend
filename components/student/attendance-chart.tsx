@@ -27,7 +27,7 @@ const chartConfig = {
 export function AttendanceChart() {
   return (
     <Card className="p-4">
-      <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+      <ChartContainer config={chartConfig} className="min-h-50 w-full">
         <BarChart accessibilityLayer data={chartData}>
           <CartesianGrid vertical={false} />
           <XAxis

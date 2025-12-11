@@ -22,7 +22,7 @@ export default function AuthenticationPage() {
           </div>
         </div>
         <div className="flex w-full flex-1 items-center justify-center p-4 lg:p-8">
-          <div className="mx-auto flex w-full flex-col justify-center gap-6 sm:w-[350px]">
+          <div className="mx-auto flex w-full flex-col justify-center gap-6 sm:w-87.5">
             <div className="flex flex-col gap-2 text-center">
               <Logo />
               <p className="text-muted-foreground text-sm">
