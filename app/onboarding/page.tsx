@@ -4,11 +4,11 @@ import Image from "next/image"
 import { SignUpUserAuthForm } from "./user-auth-form"
 
 export const metadata: Metadata = {
-  title: "Authentication",
-  description: "Authentication forms built using the components.",
+  title: "AMS - Onboarding",
+  description: "Academic Management System - University College of Engineering, Kariavattom",
 }
 
-export default function AuthenticationPage() {
+export default function OnboardingPage() {
   return (
     <>
       <div className="relative flex min-h-screen flex-col md:grid lg:max-w-none lg:grid-cols-2 lg:px-0 lg:overflow-hidden">

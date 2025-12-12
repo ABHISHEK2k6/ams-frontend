@@ -69,15 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: 'include',
       });
 
-      if (response.status === 422) {
-        // User needs to complete onboarding
-        router.push('/onboarding');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
-      }
 
       const responseData = await response.json();
       const userData = {
@@ -99,12 +90,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updatedAt: responseData.data.user.updatedAt,
       };
       setUser(userData);
+
+      if (response.status === 422) {
+        // User needs to complete onboarding
+        router.replace('/onboarding');
+        return;
+      }
+
+      setIsLoading(false);
     } catch (err) {
       console.error('Error fetching user:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch user data');
-      setUser(null);
-    } finally {
       setIsLoading(false);
+      setUser(null);
     }
   };
 
@@ -112,7 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isPending) {
       fetchUser();
     }
-  }, [session, isPending]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPending]);
 
   const value: AuthContextType = {
     session,

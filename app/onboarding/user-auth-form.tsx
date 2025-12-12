@@ -11,16 +11,13 @@ import { cn } from "@/lib/utils"
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
 import { Card } from '@/components/ui/card';
-import Logo from '@/components/logo';
-import { User } from '@/components/ui/profile/profile-form';
+import { useAuth } from '@/lib/auth-context';
 
 const departments = [
   { value: 'CSE', label: 'CSE' },
   { value: 'ECE', label: 'ECE' },
   { value: 'IT', label: 'IT' }
 ];
-
-type UserRole = 'student' | 'teacher';
 
 type FormData = {
   firstName: string;
@@ -36,7 +33,7 @@ type FormData = {
   dateOfJoining: string;
 };
 
-const FormField = ({ id, label, type = 'text', placeholder, value, error, onChange }: { id: keyof FormData; label: string; type?: string; placeholder?: string; value: string; error?: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; }) => (
+  const FormField = ({ id, label, type = 'text', placeholder, value, error, onChange }: { id: keyof FormData; label: string; type?: string; placeholder?: string; value: string; error?: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; }) => (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <Input id={id} type={type} placeholder={placeholder} value={value}
@@ -65,7 +62,6 @@ type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
 export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userData, setUserData] = useState<{ role: UserRole; firstName: string; lastName: string; email: string } | null>(null);
   const [formData, setFormData] = useState<FormData>({
     firstName: '', lastName: '', phone: '', gender: '',
     admissionNumber: '', admissionYear: '', candidateCode: '', department: '', dateOfBirth: '',
@@ -74,38 +70,23 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, isPending } = authClient.useSession();
-  const [user, setUser] = useState<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        email: string;
-        role: string;
-        emailVerified: boolean;
-        name: string;
-        image?: string | null | undefined;
-    }>();
+  const {user, isLoading : isPending, session, refetchUser} = useAuth();
 
   useEffect(() => {
-    if (isPending) return;
+    if (isPending || !user) return;
     if (!session) return router.push('/signin');
+    if(user.firstName) {
+      const redirectUrl = searchParams.get('r') || '/dashboard';
+      return router.push(redirectUrl);
+    }
 
-    setUser(session.user as any);
-    if(!user) return;
+    console.log("User data:", user);
     
     // Check if user has a role
     if (!user.role || (user.role == 'parent')) {
-      setError('Only students and teachers can complete registration');
+      setError('Only students and teachers can complete registration.');
       return;
     }
-
-    // Populate form with existing data from session
-    setUserData({
-      role: user.role as UserRole,
-      firstName: user.name?.split(' ')[0] || '',
-      lastName: user.name?.split(' ').slice(1).join(' ') || '',
-      email: user.email,
-    });
 
     // Pre-fill form with any existing data
     setFormData({
@@ -121,6 +102,8 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
       designation: '',
       dateOfJoining: '',
     });
+
+    setIsLoading(false);
   }, [session, isPending]);
   
     const handleInputChange = (field: keyof FormData, value: string) => {
@@ -144,13 +127,13 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
       newErrors.phone = 'Phone number must be at least 10 digits';
     if (!formData.gender) newErrors.gender = 'Please select a gender';
 
-    if (userData?.role === 'student') {
+    if (user?.role === 'student') {
       if (!formData.admissionNumber.trim()) newErrors.admissionNumber = 'Required';
       if (!formData.admissionYear.trim()) newErrors.admissionYear = 'Required';
       if (!formData.candidateCode.trim()) newErrors.candidateCode = 'Required';
       if (!formData.department) newErrors.department = 'Required';
       if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Required';
-    } else if (userData?.role === 'teacher') {
+    } else if (user?.role === 'teacher') {
       if (!formData.designation.trim()) newErrors.designation = 'Required';
       if (!formData.department) newErrors.department = 'Required';
       if (!formData.dateOfJoining) newErrors.dateOfJoining = 'Required';
@@ -203,9 +186,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
         throw new Error(errorData.message || 'Failed to complete registration');
       }
 
-      // Redirect to the original destination or dashboard
-      const redirectUrl = searchParams.get('r') || '/dashboard';
-      router.push(redirectUrl);
+      await refetchUser();
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -222,7 +203,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
     router.push('/signin');
   };
 
-  if (!userData) {
+  if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <Loader2 className="h-6 w-6 animate-spin" />
@@ -233,7 +214,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <div className="flex flex-col gap-3 text-center">
-        <h1 className="text-3xl font-bold">Hi, {userData.firstName || userData.email.split('@')[0]} 👋</h1>
+        <h1 className="text-3xl font-bold">Hi, {user?.name?.split(' ')[0] || user?.email.split('@')[0]} 👋</h1>
         <p className="text-muted-foreground text-sm">
           Fill in your details to continue.
         </p>
@@ -254,7 +235,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <Label className="text-xs text-muted-foreground">Email</Label>
-              <p className="text-sm font-medium mt-1">{userData.email}</p>
+              <p className="text-sm font-medium mt-1">{user?.email}</p>
             </div>
             <Button 
               type="button" 
@@ -278,7 +259,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
           options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }, { value: 'other', label: 'Other' }]} onValueChange={(value) => handleInputChange('gender', value)} />
 
         {/* Role-Specific Fields */}
-        {userData.role === 'student' && (
+        {user?.role === 'student' && (
           <>
             <div className="grid grid-cols-2 gap-3">
               <FormField id="admissionNumber" label="Admission No." placeholder="29CSE555" value={formData.admissionNumber} error={errors.admissionNumber} onChange={handleInputEvent} />
@@ -290,11 +271,11 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
           </>
         )}
 
-        {userData.role === 'teacher' && (
+        {user?.role === 'teacher' && (
           <>
             <FormField id="designation" label="Designation" placeholder="Assistant Professor" value={formData.designation} error={errors.designation} onChange={handleInputEvent} />
             <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department"
-              options={[{ value: 'cs', label: 'Computer Science' }, { value: 'ec', label: 'Electronics' }, { value: 'it', label: 'Information Technology' }]} onValueChange={(value) => handleInputChange('department', value)} />
+              options={[{ value: 'cse', label: 'Computer Science and Engineering' }, { value: 'ece', label: 'Electronics and Communication Engineering' }, { value: 'it', label: 'Information Technology' }]} onValueChange={(value) => handleInputChange('department', value)} />
             <FormField id="dateOfJoining" label="Date of Joining" type="date" value={formData.dateOfJoining} error={errors.dateOfJoining} onChange={handleInputEvent} />
           </>
         )}

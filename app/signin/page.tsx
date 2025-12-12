@@ -29,7 +29,7 @@ export default function AuthenticationPage() {
                 Enter your email to signin.
               </p>
             </div>
-            <SignInUserAuthForm redirectURL={redirectURL} />
+            <SignInUserAuthForm redirectUrl={redirectURL} />
             <p className="px-6 text-center text-xs text-muted-foreground">
               By clicking continue, you agree to our{" "}
               <Link href="/terms" className="underline underline-offset-4 hover:text-primary">
