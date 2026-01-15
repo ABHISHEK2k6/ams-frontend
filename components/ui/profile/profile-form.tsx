@@ -103,14 +103,15 @@ export default function ProfileForm({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Account details</h2>
-          <p className="text-sm text-gray-500">View or update your profile information.</p>
+          <p className="text-sm text-muted-foreground">View or update your profile information.</p>
         </div>
 
         <div className="flex items-center gap-3">
           <Button
             type="button"
             onClick={() => setEditing((v) => !v)}
-            className={`h-10 ${editing ? "bg-gray-100 text-gray-800" : "bg-violet-600 text-white"}`}
+            variant={editing ? "outline" : "default"}
+            className="h-10"
           >
             {editing ? "Cancel" : "Edit"}
           </Button>
@@ -157,7 +158,7 @@ export default function ProfileForm({
               </select>
 
               <svg
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500"
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
@@ -226,7 +227,7 @@ export default function ProfileForm({
       </Card>
 
       <div className="flex items-center justify-end gap-3">
-        <Button type="submit" className="bg-violet-600 hover:bg-violet-700 text-white" disabled={!editing}>
+        <Button type="submit" disabled={!editing}>
           Save changes
         </Button>
       </div>
