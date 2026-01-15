@@ -37,17 +37,17 @@ export default function ProfilePage() {
   }
   
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto py-12 px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-semibold">Profile</h1>
-          <p className="text-sm text-gray-500">Manage your account information</p>
+          <p className="text-sm text-muted-foreground">Manage your account information</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left summary (inline) */}
           <div className="lg:col-span-1">
-            <div className="rounded-2xl border p-6 shadow-sm">
+            <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <div className="flex items-center space-x-4">
                 {user.user.image ? (
                   <img
@@ -68,11 +68,11 @@ export default function ProfilePage() {
                   <div className="text-lg font-semibold">
                     {user.user.first_name} {user.user.last_name}
                   </div>
-                  <div className="text-sm text-gray-500 capitalize">{user.user.role}</div>
+                  <div className="text-sm text-muted-foreground capitalize">{user.user.role}</div>
                 </div>
               </div>
 
-              <div className="mt-6 text-sm text-gray-600 space-y-2">
+              <div className="mt-6 text-sm text-muted-foreground space-y-2">
                 <div className="flex">
                   <span className="font-medium w-28">Phone:</span>
                   <span>{user.user.phone ?? "—"}</span>
@@ -102,7 +102,7 @@ export default function ProfilePage() {
 
           {/* Right form */}
           <div className="lg:col-span-2">
-            <div className="rounded-2xl border p-6 shadow-sm">
+            <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <ProfileForm initialUser={user} />
             </div>
           </div>
