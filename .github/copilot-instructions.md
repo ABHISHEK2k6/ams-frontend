@@ -7,6 +7,25 @@ This is the frontend for an Academic Management System (AMS) built with Next.js 
 ## Self-Maintenance
 **IMPORTANT:** When making major architectural changes, new feature implementations, or significant updates to the project structure, **automatically update this instruction file** to reflect those changes. Keep this document as the single source of truth for the project.
 
+### When to Update This File
+Update `.github/copilot-instructions.md` immediately after:
+- **Adding new routes or pages** (e.g., new dashboard sections, user flows)
+- **Creating new component directories** or major UI components
+- **Implementing new features** (e.g., notifications system, assignment management)
+- **Adding new libraries or dependencies** that change coding patterns
+- **Modifying authentication flow** or user role definitions
+- **Changing API integration patterns** or backend communication
+- **Adding new environment variables** or configuration requirements
+- **Restructuring folder organization** or file naming conventions
+
+### How to Update
+1. Locate the relevant section in this file (Project Structure, Tech Stack, etc.)
+2. Add the new information with clear, actionable descriptions
+3. Use the same format and style as existing entries
+4. Include file paths, component names, and usage examples
+5. Update the "Project Structure" section if adding new files/folders
+6. Do NOT ask permission - just update the file as part of completing the task
+
 ## Architecture & Boundaries
 - **Frontend Only:** DO NOT create API routes (`app/api/...`) inside Next.js.
 - **Backend Integration:**
@@ -60,31 +79,76 @@ This is the frontend for an Academic Management System (AMS) built with Next.js 
 
 ## Project Structure
 - **Routes:**
-  - `/dashboard` - Main dashboard (role-based routing)
-  - `/dashboard/(student)` - Student-specific dashboard
-  - `/profile` - User profile page
-  - `/signin` - Sign in page
-  - `/onboarding` - User onboarding
+  - `/` - Landing page
+  - `/signin` - Authentication page with split-screen design
+  - `/onboarding` - User registration completion form (shown when user has incomplete profile - 422 response)
+  - `/dashboard` - Main dashboard with role-based routing
+  - `/dashboard/(student)` - Student-specific dashboard route group
+  - `/dashboard/(admin)` - Admin-specific dashboard route group
+  - `/dashboard/(admin)/users` - User management page with CRUD operations
+  - `/dashboard/profile` - User profile page
+  - `/dashboard/notifications` - Notifications page
+  - `/dashboard/assignments` - Assignments page
 - **Components:**
-  - `components/ui/` - Shadcn UI components
-  - `components/student/` - Student-specific components (greeting-header, attendance-overview, marks-overview, assignments-list, notifications-list)
-  - `components/dashboard/` - Dashboard components (Dock navigation)
-  - `components/appshell/` - Layout components (navbar, sidebar, profile)
+  - `components/ui/` - Shadcn UI components (button, card, form, input, label, alert, badge, avatar, tabs, table, select, progress, dropdown-menu, charts, dialog, pagination, skeleton, alert-dialog, separator, textarea)
+  - `components/student/` - Student-specific components
+    - `greeting-header.tsx` - Time-based greeting with dynamic backgrounds
+    - `attendance-overview.tsx` - Subject-wise attendance display
+    - `marks-overview.tsx` - Academic performance with grades
+    - `recent-absences.tsx` - Recent absence records
+    - `upcoming-classes.tsx` - Next scheduled classes
+    - `summary-card.tsx` - Reusable summary card component
+    - `notifications-list.tsx` - Teacher announcements
+  - `components/appshell/` - Layout and navigation components
+    - `appshell.tsx` - Main layout wrapper
+    - `Dock.tsx` - Animated bottom navigation dock
+    - `navbar.tsx` - Top navigation bar
+    - `profile.tsx` - Profile dropdown component
+    - `theme_toggle.tsx` - Dark/light mode toggle
+  - `components/logo.tsx` - Application logo component
+- **Library:**
+  - `lib/auth-client.ts` - better-auth client configuration
+  - `lib/auth-context.tsx` - React context for auth state (use `useAuth()` hook)
+  - `lib/utils.ts` - Utility functions (cn() helper)
+  - `lib/dummy-data.ts` - Mock data for development
+  - `lib/api/user.ts` - User API service functions (listUsers, getUserById, updateUserById, deleteUserById)
 
-## Student Dashboard Features
-The student dashboard (`/dashboard/(student)`) includes:
+## Dashboard Features by Role
+
+### Student Dashboard (`/dashboard/(student)`)
 1. **Greeting Header:** Time-based greeting with dynamic backgrounds (Good Morning, Good Noon, Good Afternoon, Good Evening, Good Night, Good Late Night)
-2. **Attendance Overview:** Subject-wise attendance with color-coded warnings
-3. **Marks Overview:** Academic performance with grades (A+, A, B+, B, C, F)
-4. **Assignments List:** Shows assignments with deadlines and status badges
-5. **Notifications List:** Teacher announcements with type indicators
+2. **Attendance Overview:** Subject-wise attendance with color-coded warnings (red <75%, yellow 75-85%, green >85%)
+3. **Marks Overview:** Academic performance display with grades (A+, A, B+, B, C, F)
+4. **Recent Absences:** List of recent missed classes
+5. **Upcoming Classes:** Next scheduled classes with time and location
+6. **Notifications List:** Teacher announcements with type indicators
+
+### Admin Dashboard (`/dashboard/(admin)`)
+- Admin-specific views and controls
+
+#### Users Management (`/dashboard/(admin)/users`)
+- **Features:**
+  - Role-based user listing with tabs (Students, Teachers, Parents, Admins, HODs, Principals, Staff)
+  - Server-side pagination using `/user/list` API endpoint
+  - Real-time search across name, email, first name, and last name
+  - View user details with complete profile information
+  - Edit user information with role-specific fields
+  - Delete users with confirmation dialog
+  - Data table with responsive design
+- **Components:**
+  - `page.tsx` - Main users list page with data table and pagination
+  - `view-user-dialog.tsx` - Modal for viewing complete user details
+  - `edit-user-dialog.tsx` - Modal for editing user information
+  - `delete-user-dialog.tsx` - Confirmation dialog for user deletion
+- **API Integration:** Uses `lib/api/user.ts` service functions with `/user/list` endpoint for efficient data fetching
 
 All components are responsive with mobile-first design and support dark/light modes.
 
 ## Navigation
-- **Desktop:** Animated dock at bottom with magnification effects (`components/dashboard/Dock.tsx`)
+- **Desktop:** Animated dock at bottom with magnification effects (`components/appshell/Dock.tsx`)
 - **Mobile:** Fixed bottom navigation bar with icons and labels
-- **Dock Items:** Home, Profile (with user avatar), Archive, Courses, Settings
+- **Dock Items:** Home, Profile (with user avatar), Notifications, Assignments, Settings
+- **Top Navbar:** Logo, theme toggle, profile dropdown (logout option)
 
 ## Critical Workflows
 - **Dev Server:** `npm run dev` (runs on port 3232)

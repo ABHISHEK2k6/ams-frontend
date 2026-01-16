@@ -9,7 +9,7 @@ type User = {
   email: string;
   name: string;
   image?: string;
-  role: 'student' | 'teacher' | 'parent';
+  role: "student" | "teacher" | "parent" | "principal" | "hod" | "staff" | "admin";
   firstName?: string;
   lastName?: string;
   phone?: number;

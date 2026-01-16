@@ -1,7 +1,7 @@
 "use client";
 
-import type { User } from "@/components/ui/profile/profile-form";
-import ProfileForm from "@/components/ui/profile/profile-form";
+import type { User } from "@/components/profile/profile-form";
+import ProfileForm from "@/components/profile/profile-form";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

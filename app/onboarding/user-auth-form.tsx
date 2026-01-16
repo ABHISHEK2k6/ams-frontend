@@ -166,14 +166,13 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
           last_name: formData.lastName,
           phone: formData.phone,
           gender: formData.gender,
-          ...(user?.role === 'student' && {student: {
+          ...(user?.role === 'student' ? {student: {
             adm_number: formData.admissionNumber,
             adm_year: formData.admissionYear,
             candidate_code: formData.candidateCode,
             department: formData.department,
             date_of_birth: formData.dateOfBirth,
-          }}),
-          ...(user?.role === 'teacher' && { teacher: {
+          }} : { teacher: {
             designation: formData.designation,
             department: formData.department,
             date_of_joining: formData.dateOfJoining,
@@ -259,7 +258,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
           options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }, { value: 'other', label: 'Other' }]} onValueChange={(value) => handleInputChange('gender', value)} />
 
         {/* Role-Specific Fields */}
-        {user?.role === 'student' && (
+        {user?.role === 'student' ? (
           <>
             <div className="grid grid-cols-2 gap-3">
               <FormField id="admissionNumber" label="Admission No." placeholder="29CSE555" value={formData.admissionNumber} error={errors.admissionNumber} onChange={handleInputEvent} />
@@ -269,9 +268,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
             <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department" options={departments} onValueChange={(value) => handleInputChange('department', value)} />
             <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} error={errors.dateOfBirth} onChange={handleInputEvent} />
           </>
-        )}
-
-        {user?.role === 'teacher' && (
+        ): (
           <>
             <FormField id="designation" label="Designation" placeholder="Assistant Professor" value={formData.designation} error={errors.designation} onChange={handleInputEvent} />
             <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department"
