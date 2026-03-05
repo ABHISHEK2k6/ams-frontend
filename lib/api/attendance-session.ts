@@ -192,3 +192,43 @@ export async function deleteAttendanceSessionById(id: string): Promise<void> {
     throw new Error(error.message || 'Failed to delete attendance session');
   }
 }
+export interface UniqueSession {
+  batch: {
+    _id: string;
+    name: string;
+    department: string;
+    adm_year: number;
+  };
+  subject: {
+    _id: string;
+    name: string;
+    subject_code: string;
+    sem: string;
+    type: string;
+  };
+  sessionCount: number;
+  latestSession: string;
+}
+
+/**
+ * Get unique batch+subject combinations for the teacher (recent sessions)
+ * Returns sessions created by the authenticated user, grouped by batch-subject,
+ * sorted by most recent session first.
+ */
+export async function getRecentUniqueSessions(): Promise<UniqueSession[]> {
+  const response = await fetch(`${API_BASE}/attendance/session/recent`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to fetch recent unique sessions');
+  }
+
+  const result: ApiResponse<UniqueSession[]> = await response.json();
+  return result.data;
+}

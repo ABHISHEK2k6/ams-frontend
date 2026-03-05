@@ -11,6 +11,7 @@ import { BookOpen, Users, Clock, Calendar } from "lucide-react";
 import GreetingHeader from "@/components/student/greeting-header";
 import ClassAttendanceOverview from "@/components/teacher/class-attendance-overview";
 import TeacherNotifications from "@/components/teacher/teacher-notifications";
+import MyClasses from "@/components/teacher/my-classes";
 import { format } from "date-fns";
 import { listAttendanceSessions, type AttendanceSession } from "@/lib/api/attendance-session";
 import Link from "next/link";
@@ -81,83 +82,8 @@ export default function TeacherHome() {
             {/* Greeting Header */}
             <GreetingHeader userName={user?.firstName || user?.name || "Teacher"} />
 
-            {/* Today's Classes Section */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-2xl font-semibold">Today's Classes</h2>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            {format(new Date(), "EEEE, MMMM dd, yyyy")}
-                        </p>
-                    </div>
-                    <Button asChild>
-                        <Link href="/dashboard/attendance">View All</Link>
-                    </Button>
-                </div>
-
-                {loading ? (
-                    <div className="md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-4 flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
-                        {[1, 2, 3, 4].map((i) => (
-                            <Skeleton key={i} className="h-48 min-w-70 md:min-w-0 shrink-0" />
-                        ))}
-                    </div>
-                ) : sessions.length === 0 ? (
-                    <Card>
-                        <CardContent className="text-center py-12">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
-                                <Calendar className="h-8 w-8 text-muted-foreground" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">No classes today</h3>
-                            <p className="text-muted-foreground mb-4">
-                                Create a new class to start taking attendance
-                            </p>
-                            <Button asChild>
-                                <Link href="/dashboard/attendance">Create Class</Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <div className="md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-4 flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory md:snap-none scrollbar-hide">
-                        {sessions.map((session) => (
-                            <Card
-                                key={session._id}
-                                className="hover:shadow-md transition-all cursor-pointer hover:border-primary min-w-70 md:min-w-0 snap-start shrink-0"
-                                onClick={() => router.push(`/dashboard/attendance/session/${session._id}`)}
-                            >
-                                <CardHeader className="pb-3">
-                                    <div className="space-y-2">
-                                        <div className="flex items-start justify-between gap-2">
-                                            <BookOpen className="h-5 w-5 text-primary" />
-                                            <Badge variant={getSessionTypeBadge(session.session_type)}>
-                                                {session.session_type}
-                                            </Badge>
-                                        </div>
-                                        <CardTitle className="text-base leading-tight">
-                                            {session.subject.name}
-                                        </CardTitle>
-                                        <div className="text-xs text-muted-foreground font-mono">
-                                            {session.subject.code}
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <Users className="h-4 w-4" />
-                                        <span>{session.batch.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <Clock className="h-3 w-3" />
-                                        <span>
-                                            {format(new Date(session.start_time), "hh:mm a")} -{" "}
-                                            {format(new Date(session.end_time), "hh:mm a")}
-                                        </span>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                )}
-            </div>
+            {/* My Classes Section - Quick Start */}
+            <MyClasses onSessionCreated={loadTodaySessions} />
 
             {/* Main Grid Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

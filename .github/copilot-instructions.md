@@ -110,6 +110,8 @@ Update `.github/copilot-instructions.md` immediately after:
   - `components/teacher/` - Teacher specific components
     - `class-attendance-overview.tsx` - Class-wise attendance statistics
     - `teacher-notifications.tsx` - Teacher notification list
+    - `my-classes.tsx` - Quick-start grid showing unique class templates (batch+subject combinations)
+    - `quick-start-dialog.tsx` - Dialog for starting new attendance sessions with time and duration selection
   - `components/appshell/` - Layout and navigation components
     - `appshell.tsx` - Main layout wrapper
     - `Dock.tsx` - Animated bottom navigation dock
@@ -125,7 +127,7 @@ Update `.github/copilot-instructions.md` immediately after:
   - `lib/api/user.ts` - User API service functions (listUsers, getUserById, createUser, updateUserById, deleteUserById)
   - `lib/api/batch.ts` - Batch API service functions (listBatches, getBatchById, createBatch, updateBatchById, deleteBatchById)
   - `lib/api/subject.ts` - Subject API service functions (listSubjects, getSubjectById, createSubject, updateSubjectById, deleteSubjectById)
-  - `lib/api/attendance-session.ts` - Attendance Session API service functions (listAttendanceSessions, getAttendanceSessionById, createAttendanceSession, updateAttendanceSessionById, deleteAttendanceSessionById)
+  - `lib/api/attendance-session.ts` - Attendance Session API service functions (listAttendanceSessions, getAttendanceSessionById, createAttendanceSession, updateAttendanceSessionById, deleteAttendanceSessionById, getRecentUniqueSessions)
   - `lib/api/attendance-record.ts` - Attendance Record API service functions (listAttendanceRecords, getAttendanceRecordById, createAttendanceRecord, createBulkAttendanceRecords, updateAttendanceRecordById, deleteAttendanceRecordById)
 
 ## Dashboard Features by Role
@@ -179,21 +181,37 @@ Update `.github/copilot-instructions.md` immediately after:
 ### Teacher Dashboard (`/dashboard/(teacher)`)
 - Teacher-specific views for class management and attendance
 
+#### Teacher Home (`/dashboard/(teacher)`)
+- **Features:**
+  - My Classes grid showing unique batch+subject combinations (from `/attendance/session/recent`)
+  - Click any class to open quick-start dialog for creating new session
+  - Quick-start dialog features:
+    - Duration selection (1hr, 2hrs, 3hrs) as toggle buttons
+    - Start time selection (hour picker, auto-selected to current hour)
+    - Minutes and seconds set to 00 (classes start at hour boundaries)
+    - Session type selection (Regular, Extra, Practical)
+    - Preview of start/end times
+    - Automatically navigates to session page after creation
+  - Class cards show last session date and total session count
+  - Responsive grid layout (1-3 columns based on screen size)
+
 #### Attendance Management (`/dashboard/(teacher)/attendance`)
 - **Features:**
-  - View today's attendance sessions
-  - Create new class/attendance session with batch, subject, session type, duration
-  - Sessions are automatically timestamped with start/end times
+  - View all recent attendance sessions
+  - Filter sessions by unique class (batch+subject combination)
+  - Create new class/attendance session
+  - Sessions table with batch, subject, time, duration, and actions
   - Click on a session to mark attendance
-  - Mobile-first responsive design with horizontal scrolling cards on mobile
-  - Session types: Regular, Extra Class, Practical/Lab
+  - Mobile-first responsive design
   - Real-time loading states with skeletons
 - **Components:**
-  - `page.tsx` - Main attendance page showing today's classes
+  - `page.tsx` - Main attendance page with filtering
   - `create-class-dialog.tsx` - Modal for creating new attendance sessions
   - `session/[id]/page.tsx` - Single session view for marking attendance (coming soon: student list and marking features)
-- **API Integration:** Uses `lib/api/attendance-session.ts` with `/attendance/session` endpoints
-- **Teacher Home:** Dashboard displays today's classes with quick access to attendance marking
+- **API Integration:** 
+  - Uses `getRecentUniqueSessions()` from `/attendance/session/recent` to get unique batch+subject combinations
+  - Uses `lib/api/attendance-session.ts` with `/attendance/session` endpoints for CRUD operations
+  - Filter functionality allows viewing sessions by specific class
 
 All components are responsive with mobile-first design and support dark/light modes.
 

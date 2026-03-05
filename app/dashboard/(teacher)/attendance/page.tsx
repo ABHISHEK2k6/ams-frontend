@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -19,35 +21,64 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Calendar, Clock, Users, BookOpen, ArrowRight, Plus, MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
+import { Calendar, Clock, Users, BookOpen, ArrowRight, Plus, MoreHorizontal, Eye, Pencil, Trash2, Filter } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { listAttendanceSessions, deleteAttendanceSessionById, type AttendanceSession } from "@/lib/api/attendance-session";
+import { listAttendanceSessions, deleteAttendanceSessionById, getRecentUniqueSessions, type AttendanceSession, type UniqueSession } from "@/lib/api/attendance-session";
 import CreateClassDialog from "./create-class-dialog";
 
 export default function AttendancePage() {
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
+  const [uniqueClasses, setUniqueClasses] = useState<UniqueSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogSession, setDeleteDialogSession] = useState<AttendanceSession | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string>("all");
 
   useEffect(() => {
-    loadSessions();
+    loadData();
   }, []);
 
-  const loadSessions = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const data = await listAttendanceSessions({
-        limit: 50,
-      });
-      setSessions(data.sessions);
+      const [sessionsData, uniqueData] = await Promise.all([
+        listAttendanceSessions({ limit: 50 }),
+        getRecentUniqueSessions(),
+      ]);
+      setSessions(sessionsData.sessions);
+      setUniqueClasses(uniqueData);
     } catch (error) {
-      console.error("Failed to load sessions:", error);
+      console.error("Failed to load data:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadSessions = async () => {
+    try {
+      const data = await listAttendanceSessions({ limit: 50 });
+      setSessions(data.sessions);
+      
+      // Refresh unique classes too
+      const uniqueData = await getRecentUniqueSessions();
+      setUniqueClasses(uniqueData);
+    } catch (error) {
+      console.error("Failed to load sessions:", error);
+    }
+  };
+
+  const getFilteredSessions = () => {
+    if (selectedClass === "all") {
+      return sessions;
+    }
+    
+    const [batchId, subjectId] = selectedClass.split("-");
+    return sessions.filter(
+      (session) => session.batch._id === batchId && session.subject._id === subjectId
+    );
+  };
+
+  const filteredSessions = getFilteredSessions();
 
   const handleDelete = async (sessionId: string) => {
     try {
@@ -76,25 +107,62 @@ export default function AttendancePage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Attendance Management</h1>
           <p className="text-muted-foreground mt-1">
-            Create classes and manage attendance
+            Manage attendance sessions and records
           </p>
         </div>
         <CreateClassDialog onClassCreated={loadSessions} />
       </div>
 
-      {/* Today's Sessions */}
+      {/* Filter by Class */}
+      {!loading && uniqueClasses.length > 0 && (
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filter by Class:</span>
+          </div>
+          <Select value={selectedClass} onValueChange={setSelectedClass}>
+            <SelectTrigger className="w-75">
+              <SelectValue placeholder="All Classes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Classes</SelectItem>
+              {uniqueClasses.map((classItem) => {
+                const key = `${classItem.batch._id}-${classItem.subject._id}`;
+                return (
+                  <SelectItem key={key} value={key}>
+                    {classItem.subject.name} - {classItem.batch.name}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+          {selectedClass !== "all" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedClass("all")}
+            >
+              Clear Filter
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Recent Sessions */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Today's Classes</CardTitle>
+              <CardTitle>Recent Sessions</CardTitle>
               <CardDescription className="mt-1">
-                {format(new Date(), "EEEE, MMMM dd, yyyy")}
+                {selectedClass === "all" 
+                  ? "All attendance sessions" 
+                  : "Filtered by selected class"}
               </CardDescription>
             </div>
             {!loading && (
               <Badge variant="outline" className="text-base px-3 py-1">
-                {sessions.length} {sessions.length === 1 ? "class" : "classes"}
+                {filteredSessions.length} {filteredSessions.length === 1 ? "session" : "sessions"}
               </Badge>
             )}
           </div>
@@ -106,16 +174,20 @@ export default function AttendancePage() {
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
-          ) : sessions.length === 0 ? (
+          ) : filteredSessions.length === 0 ? (
             <div className="text-center py-12">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
                 <Calendar className="h-8 w-8 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">No classes today</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                {selectedClass === "all" ? "No sessions found" : "No sessions for this class"}
+              </h3>
               <p className="text-muted-foreground mb-4">
-                Create a new class to start taking attendance
+                {selectedClass === "all" 
+                  ? "Create a new class to start taking attendance"
+                  : "No attendance sessions have been created for this class yet"}
               </p>
-              <CreateClassDialog onClassCreated={loadSessions} />
+              {selectedClass === "all" && <CreateClassDialog onClassCreated={loadSessions} />}
             </div>
           ) : (
             <div className="rounded-md border">
@@ -131,7 +203,7 @@ export default function AttendancePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sessions.map((session) => (
+                  {filteredSessions.map((session) => (
                     <TableRow key={session._id} className="hover:bg-muted/50">
                       <TableCell>
                         <div className="flex items-start gap-2">

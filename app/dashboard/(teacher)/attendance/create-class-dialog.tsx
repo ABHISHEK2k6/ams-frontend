@@ -5,33 +5,38 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { BookOpen, Users, Plus } from "lucide-react";
 import { createAttendanceSession, type CreateSessionData, type SessionType } from "@/lib/api/attendance-session";
 import { listBatches, type Batch } from "@/lib/api/batch";
 import { listSubjects, type Subject } from "@/lib/api/subject";
-import { format } from "date-fns";
+import { format, setHours, setMinutes, setSeconds, setMilliseconds } from "date-fns";
+import { useRouter } from "next/navigation";
 
 interface CreateClassDialogProps {
   onClassCreated?: () => void;
 }
 
 export default function CreateClassDialog({ onClassCreated }: CreateClassDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingData, setLoadingData] = useState(true);
-
-  const [formData, setFormData] = useState({
-    batch: "",
-    subject: "",
-    session_type: "regular" as SessionType,
-    hours_taken: "1",
-  });
+  const [batchId, setBatchId] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [duration, setDuration] = useState<number>(1);
+  const [startHour, setStartHour] = useState<number>(new Date().getHours());
+  const [sessionType, setSessionType] = useState<SessionType>("regular");
 
   useEffect(() => {
     if (open) {
       loadData();
+      setStartHour(new Date().getHours());
+      setDuration(1);
+      setSessionType("regular");
+      setBatchId("");
+      setSubjectId("");
     }
   }, [open]);
 
@@ -51,32 +56,40 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const getStartTimePreview = () => {
+    let t = setHours(new Date(), startHour);
+    t = setMinutes(t, 0);
+    t = setSeconds(t, 0);
+    t = setMilliseconds(t, 0);
+    return t;
+  };
 
+  const getEndTimePreview = () =>
+    new Date(getStartTimePreview().getTime() + duration * 60 * 60 * 1000);
+
+  const selectedBatch = batches.find((b) => b._id === batchId);
+  const selectedSubject = subjects.find((s) => s._id === subjectId);
+
+  const handleSubmit = async () => {
+    if (!batchId || !subjectId) return;
+    setLoading(true);
     try {
-      const now = new Date();
-      const endTime = new Date(now.getTime() + parseFloat(formData.hours_taken) * 60 * 60 * 1000);
+      const startTime = getStartTimePreview();
+      const endTime = getEndTimePreview();
 
       const sessionData: CreateSessionData = {
-        batch: formData.batch,
-        subject: formData.subject,
-        start_time: now.toISOString(),
+        batch: batchId,
+        subject: subjectId,
+        start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
-        hours_taken: parseFloat(formData.hours_taken),
-        session_type: formData.session_type,
+        hours_taken: duration,
+        session_type: sessionType,
       };
 
-      await createAttendanceSession(sessionData);
+      const newSession = await createAttendanceSession(sessionData);
       setOpen(false);
-      setFormData({
-        batch: "",
-        subject: "",
-        session_type: "regular",
-        hours_taken: "1",
-      });
       onClassCreated?.();
+      router.push(`/dashboard/attendance/session/${newSession._id}`);
     } catch (error) {
       console.error("Failed to create class:", error);
       alert(error instanceof Error ? error.message : "Failed to create class");
@@ -97,47 +110,109 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
         <DialogHeader>
           <DialogTitle>Create New Class</DialogTitle>
           <DialogDescription>
-            Create a new attendance session for your class. The session will start immediately.
+            Configure and start a new attendance session
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Batch Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="batch">Batch *</Label>
-            <Select
-              value={formData.batch}
-              onValueChange={(value) => setFormData({ ...formData, batch: value })}
-              disabled={loadingData}
-            >
-              <SelectTrigger id="batch">
-                <SelectValue placeholder={loadingData ? "Loading batches..." : "Select batch"} />
-              </SelectTrigger>
-              <SelectContent>
-                {batches.map((batch) => (
-                  <SelectItem key={batch._id} value={batch._id}>
-                    {batch.name} ({batch.adm_year})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="space-y-6">
+          {/* Schedule Preview */}
+          <div className="bg-muted rounded-lg p-4 space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-2 min-w-0">
+                <BookOpen className="h-4 w-4 text-primary mt-1 shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">
+                    {selectedSubject ? selectedSubject.name : <span className="text-muted-foreground font-normal">No subject selected</span>}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedSubject ? selectedSubject.subject_code : "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {selectedBatch ? `${selectedBatch.name} · ${selectedBatch.adm_year}` : "No batch selected"}
+                </span>
+              </div>
+            </div>
+            <div className="border-t pt-3 grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Start</p>
+                <p className="font-medium">{format(getStartTimePreview(), "hh:mm a")}</p>
+                <p className="text-xs text-muted-foreground">{format(getStartTimePreview(), "MMM dd, yyyy")}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">End</p>
+                <p className="font-medium">{format(getEndTimePreview(), "hh:mm a")}</p>
+                <p className="text-xs text-muted-foreground">{format(getEndTimePreview(), "MMM dd, yyyy")}</p>
+              </div>
+            </div>
           </div>
 
-          {/* Subject Selection */}
+          {/* Batch & Subject */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Batch</Label>
+              <Select value={batchId} onValueChange={setBatchId} disabled={loadingData}>
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingData ? "Loading..." : "Select batch"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {batches.map((batch) => (
+                    <SelectItem key={batch._id} value={batch._id}>
+                      {batch.name} ({batch.adm_year})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Select value={subjectId} onValueChange={setSubjectId} disabled={loadingData}>
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingData ? "Loading..." : "Select subject"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((subject) => (
+                    <SelectItem key={subject._id} value={subject._id}>
+                      {subject.name} ({subject.subject_code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Duration */}
           <div className="space-y-2">
-            <Label htmlFor="subject">Subject *</Label>
-            <Select
-              value={formData.subject}
-              onValueChange={(value) => setFormData({ ...formData, subject: value })}
-              disabled={loadingData}
-            >
-              <SelectTrigger id="subject">
-                <SelectValue placeholder={loadingData ? "Loading subjects..." : "Select subject"} />
+            <Label>Duration</Label>
+            <div className="flex gap-2">
+              {[1, 2, 3].map((hrs) => (
+                <Button
+                  key={hrs}
+                  type="button"
+                  variant={duration === hrs ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setDuration(hrs)}
+                >
+                  {hrs} {hrs === 1 ? "hour" : "hours"}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Start Time */}
+          <div className="space-y-2">
+            <Label>Start Time</Label>
+            <Select value={String(startHour)} onValueChange={(v) => setStartHour(Number(v))}>
+              <SelectTrigger>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {subjects.map((subject) => (
-                  <SelectItem key={subject._id} value={subject._id}>
-                    {subject.name} ({subject.subject_code})
+                {Array.from({ length: 24 }, (_, i) => (
+                  <SelectItem key={i} value={String(i)}>
+                    {format(setHours(new Date(), i), "hh:00 a")}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -146,57 +221,20 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
 
           {/* Session Type */}
           <div className="space-y-2">
-            <Label htmlFor="session_type">Session Type *</Label>
-            <Select
-              value={formData.session_type}
-              onValueChange={(value) => setFormData({ ...formData, session_type: value as SessionType })}
-            >
-              <SelectTrigger id="session_type">
-                <SelectValue placeholder="Select session type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="regular">Regular</SelectItem>
-                <SelectItem value="extra">Extra Class</SelectItem>
-                <SelectItem value="practical">Practical/Lab</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Hours */}
-          <div className="space-y-2">
-            <Label htmlFor="hours">Duration (hours) *</Label>
-            <Select
-              value={formData.hours_taken}
-              onValueChange={(value) => setFormData({ ...formData, hours_taken: value })}
-            >
-              <SelectTrigger id="hours">
-                <SelectValue placeholder="Select duration" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.5">30 minutes</SelectItem>
-                <SelectItem value="1">1 hour</SelectItem>
-                <SelectItem value="1.5">1.5 hours</SelectItem>
-                <SelectItem value="2">2 hours</SelectItem>
-                <SelectItem value="2.5">2.5 hours</SelectItem>
-                <SelectItem value="3">3 hours</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Info */}
-          <div className="bg-muted p-3 rounded-lg text-sm">
-            <p className="text-muted-foreground">
-              <strong>Start time:</strong> {format(new Date(), "hh:mm a, MMM dd, yyyy")}
-            </p>
-            {formData.hours_taken && (
-              <p className="text-muted-foreground mt-1">
-                <strong>End time:</strong>{" "}
-                {format(
-                  new Date(Date.now() + parseFloat(formData.hours_taken) * 60 * 60 * 1000),
-                  "hh:mm a, MMM dd, yyyy"
-                )}
-              </p>
-            )}
+            <Label>Session Type</Label>
+            <div className="flex gap-2">
+              {(["regular", "extra", "practical"] as SessionType[]).map((type) => (
+                <Button
+                  key={type}
+                  type="button"
+                  variant={sessionType === type ? "default" : "outline"}
+                  className="flex-1 capitalize"
+                  onClick={() => setSessionType(type)}
+                >
+                  {type}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {/* Actions */}
@@ -204,11 +242,11 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || loadingData || !formData.batch || !formData.subject}>
-              {loading ? "Creating..." : "Create Class"}
+            <Button onClick={handleSubmit} disabled={loading || loadingData || !batchId || !subjectId}>
+              {loading ? "Creating..." : "Start Class"}
             </Button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
