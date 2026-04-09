@@ -47,11 +47,7 @@ const createUserFormSchema = z.object({
   // Student-only
   batch: z.string().optional(),
   adm_number: z.string().optional(),
-  adm_year: z.union([z.string(), z.number()]).optional().transform((val): number | undefined => {
-    if (val === "" || val === undefined || val === null) return undefined;
-    const num = Number(val);
-    return isNaN(num) ? undefined : num;
-  }),
+  adm_year: z.union([z.string(), z.number()]).optional(),
   candidate_code: z.string().optional(),
   department: z.enum(["CSE", "ECE", "IT"] as const).optional(),
   date_of_birth: z.string().optional(),
@@ -158,7 +154,12 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
       if (data.role === "student") {
         payload.batch = data.batch;
         if (data.adm_number) payload.adm_number = data.adm_number;
-        if (data.adm_year) payload.adm_year = data.adm_year;
+        if (data.adm_year) {
+          const parsedYear = Number(data.adm_year);
+          if (!isNaN(parsedYear)) {
+            payload.adm_year = parsedYear;
+          }
+        }
         if (data.candidate_code) payload.candidate_code = data.candidate_code;
         if (data.department) payload.department = data.department as Department;
         if (data.date_of_birth) payload.date_of_birth = data.date_of_birth;
