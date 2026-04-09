@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Form schema for creating a new user
@@ -73,6 +73,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [isBatchesLoading, setIsBatchesLoading] = useState(false);
 
@@ -122,6 +123,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
       form.reset();
       setError(null);
       setSuccessMessage(null);
+      setShowPassword(false);
     }
     onOpenChange(isOpen);
   };
@@ -287,7 +289,27 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
                     <FormItem>
                       <FormLabel>Password (Optional)</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="Leave blank to auto-generate" {...field} autoComplete="new-password" />
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Leave blank to auto-generate"
+                            className="pr-10"
+                            {...field}
+                            autoComplete="new-password"
+                            disabled={isLoading}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            disabled={isLoading}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

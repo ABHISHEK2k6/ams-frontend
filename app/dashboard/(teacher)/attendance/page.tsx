@@ -216,7 +216,7 @@ export default function AttendancePage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-muted-foreground hidden sm:block" />
-                          <span className="font-medium">{session.batch.name}</span>
+                          <span className="font-medium">{session.batch? session.batch.name : "N/A"}</span>
                         </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
@@ -293,7 +293,7 @@ export default function AttendancePage() {
               <div className="bg-muted p-3 rounded-lg">
                 <p className="font-medium">{deleteDialogSession.subject.name}</p>
                 <p className="text-sm text-muted-foreground">
-                  {deleteDialogSession.batch.name} • {format(new Date(deleteDialogSession.start_time), "MMM dd, yyyy hh:mm a")}
+                  {deleteDialogSession.batch?.name ?? "N/A"} • {format(new Date(deleteDialogSession.start_time), "MMM dd, yyyy hh:mm a")}
                 </p>
               </div>
               <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">

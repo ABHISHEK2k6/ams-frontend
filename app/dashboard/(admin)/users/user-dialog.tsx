@@ -144,14 +144,14 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
           adm_year: data.adm_year,
           candidate_code: data.candidate_code,
           department: data.department,
-          date_of_birth: data.date_of_birth,
+          date_of_birth: data.date_of_birth || undefined,
         };
       } else if (['teacher', 'hod', 'principal', 'staff', 'admin'].includes(role)) {
          if (role !== 'admin') {
             updateData.teacher = {
                 designation: data.designation,
                 department: data.department,
-                date_of_joining: data.date_of_joining,
+                date_of_joining: data.date_of_joining || undefined,
             };
          }
       } else if (role === 'parent') {
@@ -257,8 +257,7 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
                 <div className="border rounded-lg p-4 space-y-3">
                   <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">Account Meta</h4>
                   <div className="space-y-2 text-sm">
-                   {/* @ts-ignore */}
-                    <InfoItem label="User ID" value={user._id} />
+                    <InfoItem label="User ID" value={user.id.user} />
                     <InfoItem label="Record ID" value={user.id.record} />
                     <InfoItem label="Created At" value={formatDate(user.createdAt)} />
                     <InfoItem label="Updated At" value={formatDate(user.updatedAt)} />

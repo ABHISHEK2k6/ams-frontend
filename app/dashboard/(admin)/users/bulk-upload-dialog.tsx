@@ -327,28 +327,42 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
         errors.push("Date of Birth must be a valid date (YYYY-MM-DD preferred)");
       }
 
-      let payload: BulkCreateUserData | undefined;
-      if (!errors.length && role) {
-        const base: BulkCreateUserData = {
-          first_name,
-          last_name,
-          role,
-          generate_mail,
-        };
+        let payload: BulkCreateUserData | undefined = undefined;
+        if (!errors.length && role) {
+          const base: Record<string, unknown> = {
+            first_name,
+            last_name,
+            role,
+            generate_mail,
+          };
+          
+          if (!generate_mail && emailRaw) base.email = emailRaw;
+          if (password) base.password = password;
+          if (adm_number) base.adm_number = adm_number;
+          if (adm_year !== undefined) base.adm_year = adm_year;
+          if (candidate_code) base.candidate_code = candidate_code;
+          if (department) base.department = department;
+          if (date_of_birth) base.date_of_birth = date_of_birth;
+          if (batch) base.batch = batch;
 
-        if (!generate_mail && emailRaw) {
-          base.email = emailRaw;
+          // Merge any additional columns from the CSV that aren't mapped
+          // and ensure no empty strings, nulls or undefined values are sent.
+          for (const [key, value] of Object.entries(r)) {
+            // Check if it's already explicitly handled or mapped
+            if (CSV_HEADER_MAP[key] === undefined && key !== "generate_mail" && key !== "first_name" && key !== "last_name" && key !== "role") {
+               base[key] = value;
+            }
+          }
+          
+          // Clean all empty/null values from base
+          for (const key in base) {
+             if (base[key] === "" || base[key] === null || base[key] === undefined) {
+               delete base[key];
+             }
+          }
+
+          payload = base as unknown as BulkCreateUserData;
         }
-        if (password) base.password = password;
-        if (adm_number) base.adm_number = adm_number;
-        if (adm_year !== undefined) base.adm_year = adm_year;
-        if (candidate_code) base.candidate_code = candidate_code;
-        if (department) base.department = department;
-        if (date_of_birth) base.date_of_birth = date_of_birth;
-        if (batch) base.batch = batch;
-
-        payload = base;
-      }
 
       return {
         rowNumber,
@@ -643,7 +657,7 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
                       <TableRow>
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
-                        <TableHead>Student</TableHead>
+                        <TableHead className="flex items-center justify-center">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -652,13 +666,13 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
                           <TableCell className="whitespace-normal wrap-break-word max-w-[260px]">
                             {s.email}
                           </TableCell>
-                          <TableCell>{s.role ?? "—"}</TableCell>
-                          <TableCell>
+                          <TableCell className="capitalize">{s.role ?? "—"}</TableCell>
+                          <TableCell className="flex items-center justify-center">
                             {typeof s.studentCreated === "boolean" ? (
                               s.studentCreated ? (
-                                <Badge variant="secondary">created</Badge>
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
                               ) : (
-                                <Badge variant="outline">not created</Badge>
+                                <Badge variant="outline">Not created</Badge>
                               )
                             ) : (
                               "—"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { listUsers, deleteUserById } from "@/lib/api/user";
 import { User, UserRole, PaginationInfo } from "@/lib/types/UserTypes";
 import { Button } from "@/components/ui/button";
@@ -27,14 +27,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Eye, Pencil, Trash2, Search, UserPlus, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserDialog } from "./user-dialog";
 import { DeleteUserDialog } from "./delete-user-dialog";
 import { AddUserDialog } from "./add-user-dialog";
 import { BulkUploadDialog } from "./bulk-upload-dialog";
 
-const ITEMS_PER_PAGE = 10;
+const DEFAULT_ITEMS_PER_PAGE = 10;
 
 type TabValue = 'student' | 'parent' | 'staff';
+type SortOption = 'name-asc' | 'name-desc' | 'created-desc' | 'created-asc';
 
 const ROLE_TABS: { value: TabValue; label: string; roles: UserRole[] }[] = [
   { value: 'student', label: 'Students', roles: ['student'] },
@@ -51,6 +59,8 @@ export default function UsersPage() {
   const [activeSearch, setActiveSearch] = useState(""); // Active search term used for fetching
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState<TabValue>('student');
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
+  const [sortOption, setSortOption] = useState<SortOption>('name-asc');
   
   // Dialog states
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -89,16 +99,16 @@ export default function UsersPage() {
         }
         
         // Client-side pagination for combined staff results
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
         const paginatedUsers = allStaffUsers.slice(startIndex, endIndex);
         
         setUsers(paginatedUsers);
         setPagination({
           currentPage,
-          totalPages: Math.ceil(allStaffUsers.length / ITEMS_PER_PAGE),
+          totalPages: Math.ceil(allStaffUsers.length / itemsPerPage),
           totalUsers: allStaffUsers.length,
-          limit: ITEMS_PER_PAGE,
+          limit: itemsPerPage,
           hasNextPage: endIndex < allStaffUsers.length,
           hasPreviousPage: currentPage > 1,
         });
@@ -107,7 +117,7 @@ export default function UsersPage() {
         const data = await listUsers({
           role: currentTabConfig.roles[0],
           page: currentPage,
-          limit: ITEMS_PER_PAGE,
+          limit: itemsPerPage,
           search: activeSearch || undefined,
         });
         setUsers(data.users);
@@ -118,7 +128,27 @@ export default function UsersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedTab, currentPage, activeSearch]);
+  }, [selectedTab, currentPage, activeSearch, itemsPerPage]);
+
+  const sortedUsers = useMemo(() => {
+    const clonedUsers = [...users];
+
+    switch (sortOption) {
+      case 'name-desc':
+        return clonedUsers.sort((a, b) => b.name.localeCompare(a.name));
+      case 'created-desc':
+        return clonedUsers.sort(
+          (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        );
+      case 'created-asc':
+        return clonedUsers.sort(
+          (a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+        );
+      case 'name-asc':
+      default:
+        return clonedUsers.sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }, [users, sortOption]);
 
   // Fetch users when role, page, or active search changes
   useEffect(() => {
@@ -126,6 +156,11 @@ export default function UsersPage() {
   }, [fetchUsers]);
 
   const handleDelete = async (userId: string) => {
+    if (!userId) {
+      setError("Invalid user ID");
+      return;
+    }
+
     try {
       await deleteUserById(userId);
       // Refresh users list
@@ -157,6 +192,9 @@ export default function UsersPage() {
       setCurrentPage(1); // Reset to first page on new search
     }
   };
+
+  const startItem = pagination ? (pagination.currentPage - 1) * pagination.limit + 1 : 0;
+  const endItem = pagination ? Math.min(pagination.currentPage * pagination.limit, pagination.totalUsers) : 0;
 
   const getRoleBadgeVariant = (role: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -265,16 +303,15 @@ export default function UsersPage() {
                       <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
                     </TableRow>
                   ))
-                ) : users.length === 0 ? (
+                ) : sortedUsers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No {ROLE_TABS.find(t => t.value === selectedTab)?.label.toLowerCase()} found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  users.map((user) => (
-                    //@ts-ignore
-                    <TableRow key={user._id}>
+                  sortedUsers.map((user) => (
+                    <TableRow key={user.id.user}>
                       <TableCell className="font-medium">
                         <div className="flex flex-col">
                           <span>{user.name}</span>
@@ -343,11 +380,49 @@ export default function UsersPage() {
           </div>
 
           {/* Pagination */}
-          {pagination && pagination.totalPages > 1 && (
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <p className="text-sm text-muted-foreground">
-                Page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalUsers} total users)
-              </p>
+          {pagination && (
+            <div className="flex flex-col gap-4 md:gap-3">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing {startItem}-{endItem} of {pagination.totalUsers} users
+                </p>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Sort</span>
+                    <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
+                      <SelectTrigger className="w-45">
+                        <SelectValue placeholder="Sort users" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                        <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                        <SelectItem value="created-desc">Newest first</SelectItem>
+                        <SelectItem value="created-asc">Oldest first</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Items</span>
+                    <Select
+                      value={String(itemsPerPage)}
+                      onValueChange={(value) => {
+                        setItemsPerPage(Number(value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-27.5">
+                        <SelectValue placeholder="Per page" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 / page</SelectItem>
+                        <SelectItem value="20">20 / page</SelectItem>
+                        <SelectItem value="50">50 / page</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-center md:justify-end">
               <Pagination>
                 <PaginationContent>
                   <PaginationItem>
@@ -389,6 +464,7 @@ export default function UsersPage() {
                   </PaginationItem>
                 </PaginationContent>
               </Pagination>
+              </div>
             </div>
           )}
         </CardContent>

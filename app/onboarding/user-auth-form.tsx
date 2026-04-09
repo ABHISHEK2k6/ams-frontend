@@ -79,13 +79,13 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
   const {user, incompleteProfile, isLoading : isPending, session, refetchUser} = useAuth();
 
   const locked = {
-    name: Boolean(incompleteProfile?.user?.name),
-    batch: Boolean(incompleteProfile?.profile?.batch),
-    admissionNumber: Boolean(incompleteProfile?.profile?.adm_number),
-    admissionYear: Boolean(incompleteProfile?.profile?.adm_year),
-    candidateCode: Boolean(incompleteProfile?.profile?.candidate_code),
-    department: Boolean(incompleteProfile?.profile?.department),
-    dateOfBirth: Boolean(incompleteProfile?.profile?.date_of_birth),
+    name: Boolean(incompleteProfile?.first_name || incompleteProfile?.last_name || incompleteProfile?.name),
+    batch: Boolean(incompleteProfile?.batch),
+    admissionNumber: Boolean(incompleteProfile?.adm_number),
+    admissionYear: Boolean(incompleteProfile?.adm_year),
+    candidateCode: Boolean(incompleteProfile?.candidate_code),
+    department: Boolean(incompleteProfile?.department),
+    dateOfBirth: Boolean(incompleteProfile?.date_of_birth),
   };
 
   useEffect(() => {
@@ -119,29 +119,34 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
       return;
     }
 
-    // Pre-fill form with any existing data
-    const fullName = incompleteProfile?.user?.name || user.name || '';
+    const toInputDate = (value?: string) => {
+      if (!value) return '';
+      return value.includes('T') ? value.split('T')[0] : value;
+    };
 
-    type IncompleteProfileShape = Partial<Pick<User, 'adm_number' | 'adm_year' | 'candidate_code' | 'department' | 'date_of_birth' | 'batch'>>;
-    const existingProfile = (incompleteProfile?.profile ?? {}) as IncompleteProfileShape;
+    const profile = (incompleteProfile ?? user) as User;
+    const role = incompleteProfile?.role || user.role;
 
-    const batchId =
-      (typeof existingProfile.batch === 'string' ? existingProfile.batch : undefined) ||
-      (typeof user.batch === 'string' ? user.batch : undefined);
+    const fullName = profile.name || user.name || '';
+    const inferredFirstName = fullName.split(' ')[0] || '';
+    const inferredLastName = fullName.split(' ').slice(1).join(' ') || '';
+
+    const batchValue = profile.batch ?? user.batch;
+    const batchId = typeof batchValue === 'string' ? batchValue : batchValue?._id;
 
     setFormData({
-      firstName: fullName.split(' ')[0] || '',
-      lastName: fullName.split(' ').slice(1).join(' ') || '',
-      phone: '',
-      gender: '',
+      firstName: profile.first_name || user.first_name || inferredFirstName,
+      lastName: profile.last_name || user.last_name || inferredLastName,
+      phone: String(profile.phone ?? user.phone ?? ''),
+      gender: (profile.gender || user.gender || '') as string,
       batch: batchId || '',
-      admissionNumber: existingProfile.adm_number || '',
-      admissionYear: existingProfile.adm_year ? String(existingProfile.adm_year) : '',
-      candidateCode: existingProfile.candidate_code || '',
-      department: existingProfile.department || '',
-      dateOfBirth: existingProfile.date_of_birth || '',
-      designation: '',
-      dateOfJoining: '',
+      admissionNumber: profile.adm_number || user.adm_number || '',
+      admissionYear: profile.adm_year ? String(profile.adm_year) : user.adm_year ? String(user.adm_year) : '',
+      candidateCode: profile.candidate_code || user.candidate_code || '',
+      department: (profile.department || user.department || '') as string,
+      dateOfBirth: toInputDate(profile.date_of_birth || user.date_of_birth),
+      designation: role === 'teacher' ? (profile.designation || user.designation || '') : '',
+      dateOfJoining: toInputDate(role === 'teacher' ? (profile.date_of_joining || user.date_of_joining) : undefined),
     });
 
     setIsLoading(false);
@@ -328,7 +333,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
           <>
             <FormField id="designation" label="Designation" placeholder="Assistant Professor" value={formData.designation} error={errors.designation} onChange={handleInputEvent} />
             <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department"
-              options={[{ value: 'cse', label: 'Computer Science and Engineering' }, { value: 'ece', label: 'Electronics and Communication Engineering' }, { value: 'it', label: 'Information Technology' }]} onValueChange={(value) => handleInputChange('department', value)} />
+              options={[{ value: 'CSE', label: 'Computer Science and Engineering' }, { value: 'ECE', label: 'Electronics and Communication Engineering' }, { value: 'IT', label: 'Information Technology' }]} onValueChange={(value) => handleInputChange('department', value)} />
             <FormField id="dateOfJoining" label="Date of Joining" type="date" value={formData.dateOfJoining} error={errors.dateOfJoining} onChange={handleInputEvent} />
           </>
         )}

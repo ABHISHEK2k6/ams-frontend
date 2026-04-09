@@ -37,7 +37,7 @@ export default function CsvAttendancePage() {
     const map = new Map<string, string>();
     students.forEach((student) => {
       const roll = student.adm_number?.trim();
-      if (!roll) return;
+      if (!roll || !student._id) return;
       map.set(roll.toLowerCase(), student._id);
     });
     return map;
@@ -94,11 +94,17 @@ export default function CsvAttendancePage() {
         const response = await listUsers({ role: "student", page, limit: 100 });
         totalPages = response.pagination.totalPages;
 
-        const matchedStudents = response.users.filter((student) => student.batch?._id === batchId);
+        const matchedStudents = response.users.filter((student) => {
+          const sBatchId = typeof student.batch === 'string' ? student.batch : student.batch?._id;
+          return sBatchId === batchId;
+        });
         if (matchedStudents.length > 0) {
           batchStudents.push(...matchedStudents);
         } else {
-          const looksLikeFallbackData = response.users.some((student) => student.batch?._id === "dummy-batch");
+          const looksLikeFallbackData = response.users.some((student) => {
+            const sBatchId = typeof student.batch === 'string' ? student.batch : student.batch?._id;
+            return sBatchId === "dummy-batch";
+          });
           if (looksLikeFallbackData) {
             batchStudents.push(...response.users);
           }
@@ -124,8 +130,10 @@ export default function CsvAttendancePage() {
     setSaveMessage(null);
 
     try {
-      const records = students.map((student) => {
-        const isListed = matchingStudentIds.has(student._id);
+      const records = students
+        .filter((student) => student._id)
+        .map((student) => {
+          const isListed = matchingStudentIds.has(student._id!);
         const status: AttendanceStatus =
           mode === "present"
             ? isListed
@@ -136,7 +144,7 @@ export default function CsvAttendancePage() {
               : "present";
 
         return {
-          student: student._id,
+          student: student._id!,
           status,
         };
       });

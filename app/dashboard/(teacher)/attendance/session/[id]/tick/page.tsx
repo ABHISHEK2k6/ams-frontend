@@ -40,7 +40,10 @@ export default function TickAttendancePage() {
         const response = await listUsers({ role: "student", page, limit: 100 });
         totalPages = response.pagination.totalPages;
 
-        const filtered = response.users.filter((student) => student.batch?._id === batchId);
+        const filtered = response.users.filter((student) => {
+          const sBatchId = typeof student.batch === 'string' ? student.batch : student.batch?._id;
+          return sBatchId === batchId;
+        });
         batchStudents.push(...filtered);
         page += 1;
       }
@@ -103,8 +106,8 @@ export default function TickAttendancePage() {
     if (!session || students.length === 0) return;
 
     const records = students.map((student) => ({
-      student: student._id,
-      status: markedStatuses[student._id] ?? "absent",
+      student: student._id!,
+      status: markedStatuses[student._id!] ?? "absent",
     }));
 
     setSaving(true);
@@ -251,15 +254,15 @@ export default function TickAttendancePage() {
           ) : (
             <div className="space-y-3">
               {students.map((student) => {
-                const status = markedStatuses[student._id];
+                const status = markedStatuses[student._id!];
                 return (
                   <div
-                    key={student._id}
+                    key={student._id!}
                     className="flex flex-col gap-4 rounded-xl border p-4 md:flex-row md:items-center md:justify-between"
                   >
                     <div className="space-y-1">
-                      <p className="font-semibold">{student.user.name}</p>
-                      <p className="text-sm text-muted-foreground">{student.user.email}</p>
+                      <p className="font-semibold">{student.name}</p>
+                      <p className="text-sm text-muted-foreground">{student.email}</p>
                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <span>Adm No: {student.adm_number ?? "N/A"}</span>
                         <span>Dept: {student.department ?? "N/A"}</span>
@@ -269,7 +272,7 @@ export default function TickAttendancePage() {
                       <Button
                         type="button"
                         variant={status === "absent" ? "destructive" : "outline"}
-                        onClick={() => markStudent(student._id, "absent")}
+                        onClick={() => markStudent(student._id!, "absent")}
                       >
                         <X className="mr-2 h-4 w-4" />
                         Absent
@@ -277,7 +280,7 @@ export default function TickAttendancePage() {
                       <Button
                         type="button"
                         variant={status === "present" ? "default" : "outline"}
-                        onClick={() => markStudent(student._id, "present")}
+                        onClick={() => markStudent(student._id!, "present")}
                       >
                         <Check className="mr-2 h-4 w-4" />
                         Present

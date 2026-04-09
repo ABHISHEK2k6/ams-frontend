@@ -62,10 +62,15 @@ export interface User {
   };
 }
 
-export interface IncompleteProfileResponse {
-  user: Pick<User, "id" | "name" | "email" | "role">;
-  profile: Record<string, unknown>;
-}
+// GET /user returns a flattened user payload for both 200 and 422.
+// - 200: base + role-specific fields (if present)
+// - 422: base fields only (role-specific fields missing)
+// In both cases, the payload is returned at the root of `data`.
+export type IncompleteProfileResponse = Pick<
+  User,
+  "id" | "name" | "email" | "role"
+> &
+  Partial<Omit<User, "id" | "name" | "email" | "role">>;
 
 export interface ApiResponse<T> {
   status_code: number;

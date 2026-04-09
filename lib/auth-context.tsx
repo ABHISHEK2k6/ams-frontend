@@ -53,23 +53,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
       const responseData = await response.json();
-      // Assign the user object directly
-      let userData = responseData.data;
-      if (response.status === 422 && responseData.data?.user) {
-        setIncompleteProfile(responseData.data as IncompleteProfileResponse);
-        // Flatten 422 response to match 200 response structure temporarily
-        userData = {
-          ...responseData.data.profile,
-          ...responseData.data.user,
-        };
+      const userData = responseData?.data as User | undefined;
+
+      if (!userData) {
+        throw new Error('Invalid user response');
+      }
+
+      if (response.status === 422) {
+        setIncompleteProfile(userData as IncompleteProfileResponse);
       } else {
         setIncompleteProfile(null);
       }
 
-      setUser(userData as User);
+      setUser(userData);
 
       if (response.status === 422) {
         // User needs to complete onboarding
+        setIsLoading(false);
         router.replace('/onboarding');
         return;
       }

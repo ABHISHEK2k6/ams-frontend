@@ -40,23 +40,97 @@ export default function SessionAttendanceMethodsPage() {
     return statusMap;
   };
 
+  const refreshAttendanceList = async () => {
+    try {
+      const recordsResponse = await listAttendanceRecords({ session: sessionId, limit: 1000 });
+      const recordsMap = new Map<string, AttendanceRecord>();
+      const statusMap = new Map<string, 'present' | 'absent'>();
+      
+      recordsResponse.records.forEach((record) => {
+        recordsMap.set(record.student._id, record);
+        statusMap.set(record.student._id, record.status === 'present' ? 'present' : 'absent');
+      });
+      
+      setAttendanceRecords(recordsMap);
+      setAttendanceStatus(statusMap);
+    } catch (error) {
+      console.error("Failed to refresh attendance:", error);
+      const currentStudentIds = new Set(students.map((student) => student._id!));
+      setAttendanceStatus(getDummyStatusMap(currentStudentIds));
+    }
+  };
+
   useEffect(() => {
-    const loadSession = async () => {
+    const loadData = async () => {
       setLoading(true);
       try {
-        const data = await getAttendanceSessionById(sessionId);
-        setSession(data);
+        // Fetch session
+        const sessionData = await getAttendanceSessionById(sessionId);
+        setSession(sessionData);
+
+        // Fetch all students (listUsers now handles fallback to dummy data)
+        const usersResponse = await listUsers({ role: 'student', limit: 1000 });
+        const filteredStudents = usersResponse.users.filter(
+          (user) => (typeof user.batch === 'string' ? user.batch : user.batch?._id) === (typeof sessionData.batch === 'string' ? sessionData.batch : sessionData.batch?._id)
+        );
+        const batchStudents = filteredStudents.length > 0 ? filteredStudents : usersResponse.users;
+
+        setStudents(batchStudents);
+
+        // Fetch attendance records for this session (fallback to dummy statuses)
+        try {
+          const recordsResponse = await listAttendanceRecords({ session: sessionId, limit: 1000 });
+          const recordsMap = new Map<string, AttendanceRecord>();
+          const statusMap = new Map<string, 'present' | 'absent'>();
+
+          recordsResponse.records.forEach((record) => {
+            recordsMap.set(record.student._id, record);
+            statusMap.set(record.student._id, record.status === 'present' ? 'present' : 'absent');
+          });
+
+          setAttendanceRecords(recordsMap);
+          if (statusMap.size > 0) {
+            setAttendanceStatus(statusMap);
+          } else {
+            setAttendanceStatus(getDummyStatusMap(new Set(batchStudents.map((s) => s._id!))));
+          }
+        } catch (recordError) {
+          console.warn("Using dummy attendance fallback:", recordError);
+          setAttendanceRecords(new Map());
+          setAttendanceStatus(getDummyStatusMap(new Set(batchStudents.map((s) => s._id!))));
+        }
       } catch (error) {
-        console.error("Failed to load session:", error);
+        console.error("Failed to load data:", error);
+        setStudents([]);
+        setAttendanceStatus(new Map());
       } finally {
         setLoading(false);
       }
     };
 
     if (sessionId) {
-      void loadSession();
+      loadData();
     }
   }, [sessionId]);
+
+  // Auto-refresh when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      refreshAttendanceList();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [sessionId, refreshAttendanceList]);
+
+  const toggleAttendance = (studentId: string) => {
+    setAttendanceStatus((prev) => {
+      const newStatus = new Map(prev);
+      const current = newStatus.get(studentId);
+      newStatus.set(studentId, current === 'present' ? 'absent' : 'present');
+      return newStatus;
+    });
+  };
 
   if (loading) {
     return (
@@ -127,7 +201,7 @@ export default function SessionAttendanceMethodsPage() {
               <Users className="h-5 w-5 text-primary shrink-0" />
               <div>
                 <p className="text-sm font-medium">Batch</p>
-                <p className="text-sm text-muted-foreground">{session.batch.name}</p>
+                <p className="text-sm text-muted-foreground">{session.batch?.name ?? "N/A"}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
@@ -208,7 +282,7 @@ export default function SessionAttendanceMethodsPage() {
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {students.map((student) => {
                 const studentId = student._id;
-                const status = attendanceStatus.get(studentId) || 'absent';
+                const status = attendanceStatus.get(studentId!) || 'absent';
                 const isPresent = status === 'present';
                 
                 return (
@@ -217,13 +291,13 @@ export default function SessionAttendanceMethodsPage() {
                     className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex-1">
-                      <p className="font-medium text-sm">{student.user.name}</p>
+                      <p className="font-medium text-sm">{student.name}</p>
                       <p className="text-xs text-muted-foreground">{student.adm_number || 'N/A'}</p>
                     </div>
                     <Button
                       variant={isPresent ? "default" : "outline"}
                       size="sm"
-                      onClick={() => toggleAttendance(studentId)}
+                      onClick={() => toggleAttendance(studentId!)}
                       className="shrink-0 gap-1"
                     >
                       {isPresent ? (
