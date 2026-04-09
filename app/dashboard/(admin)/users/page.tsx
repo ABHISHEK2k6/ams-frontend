@@ -273,7 +273,8 @@ export default function UsersPage() {
                   </TableRow>
                 ) : (
                   users.map((user) => (
-                    <TableRow key={user.id.user}>
+                    //@ts-ignore
+                    <TableRow key={user._id}>
                       <TableCell className="font-medium">
                         <div className="flex flex-col">
                           <span>{user.name}</span>

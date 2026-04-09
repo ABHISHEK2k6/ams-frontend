@@ -257,7 +257,8 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
                 <div className="border rounded-lg p-4 space-y-3">
                   <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">Account Meta</h4>
                   <div className="space-y-2 text-sm">
-                    <InfoItem label="User ID" value={user.id.user} />
+                   {/* @ts-ignore */}
+                    <InfoItem label="User ID" value={user._id} />
                     <InfoItem label="Record ID" value={user.id.record} />
                     <InfoItem label="Created At" value={formatDate(user.createdAt)} />
                     <InfoItem label="Updated At" value={formatDate(user.updatedAt)} />
