@@ -42,11 +42,19 @@ export default function SessionAttendanceMethodsPage() {
 
   const refreshAttendanceList = async () => {
     try {
-      const recordsResponse = await listAttendanceRecords({ session: sessionId, limit: 1000 });
+      let allRecords: AttendanceRecord[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const response = await listAttendanceRecords({ session: sessionId, limit: 100, page });
+        allRecords = [...allRecords, ...response.records];
+        totalPages = response.pagination?.totalPages || 1;
+        page++;
+      } while (page <= totalPages);
       const recordsMap = new Map<string, AttendanceRecord>();
       const statusMap = new Map<string, 'present' | 'absent'>();
       
-      recordsResponse.records.forEach((record) => {
+      allRecords.forEach((record) => {
         recordsMap.set(record.student._id, record);
         statusMap.set(record.student._id, record.status === 'present' ? 'present' : 'absent');
       });
@@ -70,18 +78,33 @@ export default function SessionAttendanceMethodsPage() {
         const sessionBatchId = typeof sessionData.batch === 'string' ? sessionData.batch : sessionData.batch?._id;
 
         // Fetch students in batch
-        const usersResponse = await listUsers({ role: 'student', batch: sessionBatchId, limit: 1000 });
-        const batchStudents = usersResponse.users;
+        let batchStudents: User[] = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const usersResponse = await listUsers({ role: 'student', batch: sessionBatchId, limit: 100, page });
+          batchStudents = [...batchStudents, ...usersResponse.users];
+          totalPages = usersResponse.pagination?.totalPages || 1;
+          page++;
+        } while (page <= totalPages);
 
         setStudents(batchStudents);
 
         // Fetch attendance records for this session (fallback to dummy statuses)
         try {
-          const recordsResponse = await listAttendanceRecords({ session: sessionId, limit: 1000 });
+          let allRecords: AttendanceRecord[] = [];
+          let recPage = 1;
+          let recTotalPages = 1;
+          do {
+            const recordsResponse = await listAttendanceRecords({ session: sessionId, limit: 100, page: recPage });
+            allRecords = [...allRecords, ...recordsResponse.records];
+            recTotalPages = recordsResponse.pagination?.totalPages || 1;
+            recPage++;
+          } while (recPage <= recTotalPages);
           const recordsMap = new Map<string, AttendanceRecord>();
           const statusMap = new Map<string, 'present' | 'absent'>();
 
-          recordsResponse.records.forEach((record) => {
+          allRecords.forEach((record) => {
             recordsMap.set(record.student._id, record);
             statusMap.set(record.student._id, record.status === 'present' ? 'present' : 'absent');
           });

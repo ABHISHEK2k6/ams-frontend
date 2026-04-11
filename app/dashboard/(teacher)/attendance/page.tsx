@@ -14,19 +14,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Calendar, Clock, Users, BookOpen, MoreHorizontal, Eye, Pencil, Trash2, Filter } from "lucide-react";
-import Link from "next/link";
+import { Calendar, Clock, Users, BookOpen, Pencil, Trash2, Filter } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { listAttendanceSessions, deleteAttendanceSessionById, getRecentUniqueSessions, type AttendanceSession, type UniqueSession } from "@/lib/api/attendance-session";
 import CreateClassDialog from "./create-class-dialog";
 
 export default function AttendancePage() {
+  const router = useRouter();
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [uniqueClasses, setUniqueClasses] = useState<UniqueSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,8 +184,9 @@ export default function AttendancePage() {
               {selectedClass === "all" && <CreateClassDialog onClassCreated={loadSessions} />}
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
+            <>
+              <div className="hidden md:block rounded-md border">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Subject</TableHead>
@@ -203,7 +199,11 @@ export default function AttendancePage() {
                 </TableHeader>
                 <TableBody>
                   {filteredSessions.map((session) => (
-                    <TableRow key={session._id} className="hover:bg-muted/50">
+                    <TableRow 
+                      key={session._id} 
+                      className="hover:bg-muted/50 cursor-pointer"
+                      onClick={() => router.push(`/dashboard/attendance/session/${session._id}`)}
+                    >
                       <TableCell>
                         <div className="flex items-start gap-2">
                           <BookOpen className="h-4 w-4 text-primary mt-1 shrink-0" />
@@ -237,44 +237,103 @@ export default function AttendancePage() {
                         {session.hours_taken} {session.hours_taken === 1 ? "hour" : "hours"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/dashboard/attendance/session/${session._id}`} className="cursor-pointer">
-                                <Eye className="mr-2 h-4 w-4" />
-                                Mark Attendance
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                // TODO: Implement edit functionality
-                                alert("Edit functionality coming soon!");
-                              }}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setDeleteDialogSession(session)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              alert("Edit functionality coming soon!");
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Delete"
+                            className="text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteDialogSession(session);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
+
+            {/* Mobile View */}
+            <div className="md:hidden space-y-3">
+              {filteredSessions.map((session) => (
+                <div
+                  key={session._id}
+                  className="flex flex-col gap-3 p-4 rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer hover:bg-muted/50"
+                  onClick={() => router.push(`/dashboard/attendance/session/${session._id}`)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-start gap-2">
+                      <BookOpen className="h-4 w-4 text-primary mt-1 shrink-0" />
+                      <div>
+                        <p className="font-medium text-base">{session.subject.name}</p>
+                        <p className="text-sm text-muted-foreground">{session.subject.code}</p>
+                      </div>
+                    </div>
+                    <Badge variant={getSessionTypeBadge(session.session_type)}>
+                      {session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 text-sm text-muted-foreground mt-1">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 shrink-0" />
+                      <span className="font-medium text-foreground">{session.batch ? session.batch.name : "N/A"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 shrink-0" />
+                      <span>
+                        {format(new Date(session.start_time), "hh:mm a")} -{" "}
+                        {format(new Date(session.end_time), "hh:mm a")} ({session.hours_taken} {session.hours_taken === 1 ? "hr" : "hrs"})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-3 mt-1 border-t">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        alert("Edit functionality coming soon!");
+                      }}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteDialogSession(session);
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </CardContent>
       </Card>
