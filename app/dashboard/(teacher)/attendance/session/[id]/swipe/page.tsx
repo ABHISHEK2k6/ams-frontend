@@ -172,18 +172,22 @@ export default function SwipeAttendancePage() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      if (!session) throw new Error("No session found");
+      if (!session || students.length === 0) throw new Error("No session or students found");
 
       const createRecords: Array<{ student: string; status: AttendanceStatus }> = [];
       const updateRecordsList: Array<{ recordId: string; status: AttendanceStatus }> = [];
 
-      markedRecords.forEach((record) => {
-        const existingRecord = existingRecords.get(record.studentId);
+      // Process ALL students, not just marked ones - default to absent if not marked
+      students.forEach((student) => {
+        const markedRecord = markedRecords.find(r => r.studentId === student._id);
+        const status = markedRecord?.status ?? "absent";
+        
+        const existingRecord = existingRecords.get(student._id!);
 
         if (existingRecord) {
-          updateRecordsList.push({ recordId: existingRecord._id, status: record.status });
+          updateRecordsList.push({ recordId: existingRecord._id, status });
         } else {
-          createRecords.push({ student: record.studentId, status: record.status });
+          createRecords.push({ student: student._id!, status });
         }
       });
 
