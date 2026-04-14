@@ -155,21 +155,30 @@ export default function SwipeAttendancePage() {
   };
 
   const goBack = async () => {
-    if (!canGoBack) return;
-    const newIndex = currentIndex + 1;
-    await childRefs[newIndex].current?.restoreCard();
-    setCurrentIndex(newIndex);
-    setLastSwipeDirection(null); // Reset visual feedback
-    
-    // Remove the most recently saved record to cleanly rewrite it on next swipe
-    setMarkedRecords((prev) => {
-      const newArray = [...prev];
-      newArray.pop();
-      return newArray;
-    });
+    if (!canGoBack) {
+      console.warn('Cannot go back: canGoBack is false or no more cards');
+      return;
+    }
+    try {
+      const newIndex = currentIndex + 1;
+      console.log('Restoring card at index:', newIndex);
+      await childRefs[newIndex].current?.restoreCard();
+      setCurrentIndex(newIndex);
+      setLastSwipeDirection(null); // Reset visual feedback
+      
+      // Remove the most recently saved record to cleanly rewrite it on next swipe
+      setMarkedRecords((prev) => {
+        const newArray = [...prev];
+        newArray.pop();
+        return newArray;
+      });
+    } catch (error) {
+      console.error('Error in goBack:', error);
+    }
   };
 
   const handleSubmit = async () => {
+    console.log('Submit button clicked');
     setSubmitting(true);
     try {
       if (!session || students.length === 0) throw new Error("No session or students found");
@@ -190,6 +199,8 @@ export default function SwipeAttendancePage() {
           createRecords.push({ student: student._id!, status });
         }
       });
+
+      console.log('Creating:', createRecords.length, 'records. Updating:', updateRecordsList.length, 'records');
 
       let createdCount = 0;
       let updatedCount = 0;
@@ -227,6 +238,7 @@ export default function SwipeAttendancePage() {
       }
 
       const totalSaved = createdCount + updatedCount;
+      console.log('Submission complete:', totalSaved, 'records saved');
       if (errorCount > 0) {
         toast.success(`Saved ${totalSaved} records (${createdCount} new, ${updatedCount} updated) with ${errorCount} errors`);
       } else {
@@ -281,13 +293,14 @@ export default function SwipeAttendancePage() {
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="absolute inset-0 flex flex-col items-center justify-center z-0"
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="absolute inset-0 flex flex-col items-center justify-center z-50 pointer-events-auto p-4"
             >
-              <Card className="w-full text-center shadow-lg border-2">
+              <Card className="w-full max-w-sm text-center shadow-lg border-2 pointer-events-auto bg-card/95 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle>Session Complete!</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 pointer-events-auto">
                   <div className="flex justify-around py-4 bg-muted/50 rounded-lg">
                     <div className="text-center">
                       <p className="text-3xl font-bold text-green-500">
@@ -303,11 +316,20 @@ export default function SwipeAttendancePage() {
                     </div>
                   </div>
                   
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 w-full pointer-events-auto">
                     <Button 
-                      className="w-full h-12 text-lg" 
-                      onClick={handleSubmit}
+                      className="w-full h-12 text-lg pointer-events-auto" 
+                      onClick={(e) => {
+                        console.log('Submit button clicked via onClick event');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSubmit();
+                      }}
+                      onMouseDown={(e) => {
+                        console.log('Submit button mouse down');
+                      }}
                       disabled={submitting}
+                      type="button"
                     >
                       {submitting ? "Saving..." : (
                         <>
@@ -315,7 +337,21 @@ export default function SwipeAttendancePage() {
                         </>
                       )}
                     </Button>
-                    <Button variant="outline" className="w-full" onClick={() => goBack()} disabled={submitting}>
+                    <Button 
+                      variant="outline" 
+                      className="w-full pointer-events-auto h-10" 
+                      onClick={(e) => {
+                        console.log('Review button clicked via onClick event');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        goBack();
+                      }}
+                      onMouseDown={(e) => {
+                        console.log('Review button mouse down');
+                      }}
+                      disabled={submitting}
+                      type="button"
+                    >
                       <RotateCcw className="mr-2 h-4 w-4" /> Review Last Card
                     </Button>
                   </div>
