@@ -72,24 +72,63 @@ const parseBackendErrorPayload = (payload: unknown): { statusCode?: number; mess
   return { statusCode, message, raw };
 };
 
+const isGenericOnboardingMessage = (message: string): boolean => {
+  const m = message.toLowerCase();
+  if (!m) return true;
+
+  return (
+    m.includes("an error occurred while creating the user profile") ||
+    m.includes("failed to complete registration") ||
+    m.includes("internal server error") ||
+    m.includes("something went wrong")
+  );
+};
+
+const selectFieldErrorMessage = (
+  message: string,
+  fallback: string,
+  expectedKeywords: string[]
+): string => {
+  if (!message.trim()) return fallback;
+  const lower = message.toLowerCase();
+  const hasExpectedKeyword = expectedKeywords.some((k) => lower.includes(k));
+
+  if (isGenericOnboardingMessage(message) || !hasExpectedKeyword) {
+    return fallback;
+  }
+
+  return message;
+};
+
 const mapBackendFieldErrors = (payload: unknown): Record<string, string> => {
   const fieldErrors: Record<string, string> = {};
   const { statusCode, message, raw } = parseBackendErrorPayload(payload);
 
   // Exact backend status-code mapping
   if (statusCode === 4222) {
-    fieldErrors.candidateCode = message || "Candidate code already exists for another student";
+    fieldErrors.candidateCode = selectFieldErrorMessage(
+      message,
+      "Candidate code already exists for another student",
+      ["candidate", "code"]
+    );
     return fieldErrors;
   }
 
   if (statusCode === 4221) {
-    fieldErrors.admissionNumber = message || "Admission number already exists for another student";
+    fieldErrors.admissionNumber = selectFieldErrorMessage(
+      message,
+      "Admission number already exists for another student",
+      ["admission", "number"]
+    );
     return fieldErrors;
   }
 
   if (statusCode === 4223) {
-    const combinedMessage =
-      message || "Admission number and candidate code already exist for another student";
+    const combinedMessage = selectFieldErrorMessage(
+      message,
+      "Admission number and candidate code already exist for another student",
+      ["admission", "candidate", "number", "code"]
+    );
     fieldErrors.admissionNumber = combinedMessage;
     fieldErrors.candidateCode = combinedMessage;
     return fieldErrors;
@@ -101,21 +140,33 @@ const mapBackendFieldErrors = (payload: unknown): Record<string, string> => {
     raw.includes("candidate code") ||
     message.toLowerCase().includes("candidate code")
   ) {
-    fieldErrors.candidateCode = message || "Candidate code already exists. Please use a different value.";
+    fieldErrors.candidateCode = selectFieldErrorMessage(
+      message,
+      "Candidate code already exists. Please use a different value.",
+      ["candidate", "code"]
+    );
   }
   if (
     raw.includes("adm_year") ||
     raw.includes("admission year") ||
     message.toLowerCase().includes("admission year")
   ) {
-    fieldErrors.admissionYear = message || "Admission year already exists for another student record.";
+    fieldErrors.admissionYear = selectFieldErrorMessage(
+      message,
+      "Admission year already exists for another student record.",
+      ["admission", "year"]
+    );
   }
   if (
     raw.includes("adm_number") ||
     raw.includes("admission number") ||
     message.toLowerCase().includes("admission number")
   ) {
-    fieldErrors.admissionNumber = message || "Admission number already exists. Please verify and try again.";
+    fieldErrors.admissionNumber = selectFieldErrorMessage(
+      message,
+      "Admission number already exists. Please verify and try again.",
+      ["admission", "number"]
+    );
   }
 
   return fieldErrors;

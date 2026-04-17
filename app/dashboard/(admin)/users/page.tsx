@@ -309,7 +309,7 @@ export default function UsersPage() {
               {/* Student Batch & Department Filters - Tree View */}
               {selectedTab === "student" && (
                 <aside className="w-full lg:w-64 xl:w-72 shrink-0 border-b lg:border-b-0 lg:border-r bg-muted/10 p-4 space-y-4">
-                  <h3 className="text-sm font-semibold px-2 tracking-tight text-muted-foreground uppercase text-xs">Directory</h3>
+                  <h3 className="text-sm font-semibold px-2 tracking-tight text-muted-foreground uppercase">Directory</h3>
                   
                   <Button 
                     variant={selectedYear === "all" ? "secondary" : "ghost"}
@@ -409,7 +409,7 @@ export default function UsersPage() {
                     ))
                   ) : sortedUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-[28rem] text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="h-112 text-center text-muted-foreground">
                         <div className="flex flex-col items-center justify-center space-y-3 opacity-80">
                           <Users className="h-8 w-8 text-muted-foreground/50 mb-2" />
                           <p className="text-lg font-medium">No {ROLE_TABS.find((t) => t.value === selectedTab)?.label.toLowerCase()} found</p>

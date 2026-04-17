@@ -68,6 +68,58 @@ export interface UpdateBatchData {
   staff_advisor?: string;
 }
 
+function extractApiMessage(payload: unknown): string {
+  const p = (payload ?? {}) as {
+    message?: string;
+    error?: string | { message?: string };
+    data?: string | { message?: string; error?: string | { message?: string } };
+  };
+
+  if (typeof p.message === 'string' && p.message.trim()) return p.message;
+  if (typeof p.error === 'string' && p.error.trim()) return p.error;
+  if (typeof p.error === 'object' && typeof p.error?.message === 'string' && p.error.message.trim()) {
+    return p.error.message;
+  }
+  if (typeof p.data === 'string' && p.data.trim()) return p.data;
+  if (typeof p.data === 'object') {
+    const d = p.data;
+    if (typeof d?.message === 'string' && d.message.trim()) return d.message;
+    if (typeof d?.error === 'string' && d.error.trim()) return d.error;
+    if (typeof d?.error === 'object' && typeof d.error?.message === 'string' && d.error.message.trim()) {
+      return d.error.message;
+    }
+  }
+
+  return '';
+}
+
+export function getUnknownErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'string' && err.trim()) return err;
+
+  if (err && typeof err === 'object') {
+    const obj = err as { message?: unknown; error?: unknown; data?: unknown };
+    if (typeof obj.message === 'string' && obj.message.trim()) return obj.message;
+    if (typeof obj.error === 'string' && obj.error.trim()) return obj.error;
+    const extracted = extractApiMessage(err);
+    if (extracted) return extracted;
+  }
+
+  return fallback;
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  const text = await response.text().catch(() => '');
+  if (!text) return fallback;
+
+  try {
+    const payload = JSON.parse(text);
+    return extractApiMessage(payload) || text || fallback;
+  } catch {
+    return text || fallback;
+  }
+}
+
 export function isKnownPopulateResponseIssue(message?: string): boolean {
   const m = (message || "").toLowerCase();
   if (!m) return false;
@@ -76,6 +128,10 @@ export function isKnownPopulateResponseIssue(message?: string): boolean {
     m.includes("strictpopulate") ||
     m.includes("cannot populate") ||
     m.includes("failed to retrieve batch") ||
+    m.includes("failed to update batch") ||
+    m.includes("failed to create batch") ||
+    m.includes("an error occurred while updating batch") ||
+    m.includes("an error occurred while creating batch") ||
     (m.includes("populate") && (m.includes("batch") || m.includes("staff_advisor") || m.includes("path")))
   );
 }
@@ -141,10 +197,16 @@ export async function createBatch(data: CreateBatchData): Promise<Batch> {
     body: JSON.stringify(data),
   });
 
-  const result: ApiResponse<Batch> = await response.json();
+  const result: ApiResponse<Batch> = await response.json().catch(() => ({
+    status_code: response.status,
+    message: '',
+    data: {} as Batch,
+  }));
 
   if (!response.ok) {
-    throw new Error(result.message || 'Failed to create batch');
+    const fallback = result.message || 'Failed to create batch';
+    const message = await readErrorMessage(response.clone(), fallback);
+    throw new Error(message || fallback);
   }
 
   return result.data;
@@ -163,10 +225,16 @@ export async function updateBatchById(id: string, data: UpdateBatchData): Promis
     body: JSON.stringify(data),
   });
 
-  const result: ApiResponse<Batch> = await response.json();
+  const result: ApiResponse<Batch> = await response.json().catch(() => ({
+    status_code: response.status,
+    message: '',
+    data: {} as Batch,
+  }));
 
   if (!response.ok) {
-    throw new Error(result.message || 'Failed to update batch');
+    const fallback = result.message || 'Failed to update batch';
+    const message = await readErrorMessage(response.clone(), fallback);
+    throw new Error(message || fallback);
   }
 
   return result.data;
@@ -200,8 +268,8 @@ export async function createBatchesBulk(batches: Partial<CreateBatchData>[]): Pr
     try {
       const res = await createBatch(batch as CreateBatchData);
       success.push({ name: batch.name || 'Unknown', batchId: res._id });
-    } catch (err: any) {
-      const message = err?.message || 'Failed to create batch';
+    } catch (err: unknown) {
+      const message = getUnknownErrorMessage(err, 'Failed to create batch');
 
       // Backend can persist successfully but fail while populating response payload.
       if (isKnownPopulateResponseIssue(message)) {

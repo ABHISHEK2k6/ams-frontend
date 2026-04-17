@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Batch, updateBatchById, isKnownPopulateResponseIssue } from "@/lib/api/batch";
+import { Batch, updateBatchById, isKnownPopulateResponseIssue, getUnknownErrorMessage } from "@/lib/api/batch";
 import { listUsers } from "@/lib/api/user";
 import type { User } from "@/lib/types/UserTypes";
 import {
@@ -236,7 +236,7 @@ export function BatchDialog({
         if (onSuccess) onSuccess();
       }, 1500);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update batch";
+      const message = getUnknownErrorMessage(err, "Failed to update batch");
       const isLikelySavedWithResponsePopulateIssue = isKnownPopulateResponseIssue(message);
 
       // Backend can persist update but fail while populating response object.
