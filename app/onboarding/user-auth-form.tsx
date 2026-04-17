@@ -384,15 +384,24 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
       });
 
       const responsePayload = await response.json().catch(() => ({}));
+      const parsedBackendError = parseBackendErrorPayload(responsePayload);
       const normalizedStatus = Number(
         (responsePayload as { status_code?: number | string; statusCode?: number | string }).status_code ??
         (responsePayload as { status_code?: number | string; statusCode?: number | string }).statusCode ??
+        parsedBackendError.statusCode ??
         response.status
       );
+      const mappedFieldErrors = mapBackendFieldErrors(responsePayload);
+      const isKnownUniquenessStatus = [4221, 4222, 4223].includes(Number(parsedBackendError.statusCode));
+
+      // Some production responses return HTTP 200 while carrying uniqueness status in body.
+      if (isKnownUniquenessStatus && Object.keys(mappedFieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...mappedFieldErrors }));
+        setError(null);
+        return;
+      }
 
       if (!response.ok || normalizedStatus >= 400) {
-        const mappedFieldErrors = mapBackendFieldErrors(responsePayload);
-
         if (Object.keys(mappedFieldErrors).length > 0) {
           setErrors((prev) => ({ ...prev, ...mappedFieldErrors }));
           setError(null);
