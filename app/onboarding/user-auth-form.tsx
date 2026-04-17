@@ -43,15 +43,28 @@ const parseBackendErrorPayload = (payload: unknown): { statusCode?: number; mess
     code?: number | string;
     message?: string;
     data?: unknown;
-    error?: { message?: string; status_code?: number | string; code?: number | string };
+    error?: {
+      message?: string;
+      status_code?: number | string;
+      code?: number | string;
+      data?: { status_code?: number | string; code?: number | string; message?: string };
+    };
   };
+
+  const dataObj = (p.data && typeof p.data === "object")
+    ? (p.data as { status_code?: number | string; code?: number | string; message?: string })
+    : undefined;
 
   const statusCandidates = [
     p.status_code,
     p.statusCode,
     p.code,
+    dataObj?.status_code,
+    dataObj?.code,
     p.error?.status_code,
     p.error?.code,
+    p.error?.data?.status_code,
+    p.error?.data?.code,
   ]
     .map((v) => Number(v))
     .filter((v) => Number.isFinite(v));
@@ -61,11 +74,12 @@ const parseBackendErrorPayload = (payload: unknown): { statusCode?: number; mess
 
   const messageFromData = typeof p.data === "string"
     ? p.data
-    : (p.data as { message?: string } | undefined)?.message;
+    : dataObj?.message;
 
   const message =
     p.message ||
     p.error?.message ||
+    p.error?.data?.message ||
     messageFromData ||
     "";
 
@@ -167,6 +181,19 @@ const mapBackendFieldErrors = (payload: unknown): Record<string, string> => {
       "Admission number already exists. Please verify and try again.",
       ["admission", "number"]
     );
+  }
+
+  // Combined duplicate fallback for production responses that don't expose granular keys.
+  const hasAdmissionSignal = raw.includes("admission number") || message.toLowerCase().includes("admission number");
+  const hasCandidateSignal = raw.includes("candidate code") || message.toLowerCase().includes("candidate code");
+  if (hasAdmissionSignal && hasCandidateSignal) {
+    const combined = selectFieldErrorMessage(
+      message,
+      "Admission number and candidate code already exist for another student",
+      ["admission", "candidate", "number", "code"]
+    );
+    fieldErrors.admissionNumber = combined;
+    fieldErrors.candidateCode = combined;
   }
 
   return fieldErrors;

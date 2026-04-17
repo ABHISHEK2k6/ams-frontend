@@ -120,6 +120,35 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
   }
 }
 
+type ParsedResponse<T> = {
+  payload: Partial<ApiResponse<T>>;
+  message: string;
+};
+
+async function parseResponsePayload<T>(response: Response): Promise<ParsedResponse<T>> {
+  const text = await response.text().catch(() => '');
+
+  if (!text) {
+    return {
+      payload: {},
+      message: '',
+    };
+  }
+
+  try {
+    const payload = JSON.parse(text) as Partial<ApiResponse<T>>;
+    return {
+      payload,
+      message: extractApiMessage(payload) || '',
+    };
+  } catch {
+    return {
+      payload: {},
+      message: text,
+    };
+  }
+}
+
 export function isKnownPopulateResponseIssue(message?: string): boolean {
   const m = (message || "").toLowerCase();
   if (!m) return false;
@@ -197,19 +226,14 @@ export async function createBatch(data: CreateBatchData): Promise<Batch> {
     body: JSON.stringify(data),
   });
 
-  const result: ApiResponse<Batch> = await response.json().catch(() => ({
-    status_code: response.status,
-    message: '',
-    data: {} as Batch,
-  }));
+  const { payload, message } = await parseResponsePayload<Batch>(response);
 
   if (!response.ok) {
-    const fallback = result.message || 'Failed to create batch';
-    const message = await readErrorMessage(response.clone(), fallback);
-    throw new Error(message || fallback);
+    const fallback = message || payload.message || 'Failed to create batch';
+    throw new Error(fallback);
   }
 
-  return result.data;
+  return (payload.data as Batch) || ({} as Batch);
 }
 
 /**
@@ -225,19 +249,14 @@ export async function updateBatchById(id: string, data: UpdateBatchData): Promis
     body: JSON.stringify(data),
   });
 
-  const result: ApiResponse<Batch> = await response.json().catch(() => ({
-    status_code: response.status,
-    message: '',
-    data: {} as Batch,
-  }));
+  const { payload, message } = await parseResponsePayload<Batch>(response);
 
   if (!response.ok) {
-    const fallback = result.message || 'Failed to update batch';
-    const message = await readErrorMessage(response.clone(), fallback);
-    throw new Error(message || fallback);
+    const fallback = message || payload.message || 'Failed to update batch';
+    throw new Error(fallback);
   }
 
-  return result.data;
+  return (payload.data as Batch) || ({} as Batch);
 }
 
 /**
