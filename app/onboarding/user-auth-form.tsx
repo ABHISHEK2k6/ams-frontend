@@ -35,12 +35,46 @@ type FormData = {
   dateOfJoining: string;
 };
 
+const parseBackendErrorPayload = (payload: unknown): { statusCode?: number; message: string; raw: string } => {
+  const raw = JSON.stringify(payload ?? {}).toLowerCase();
+  const p = (payload ?? {}) as {
+    status_code?: number | string;
+    statusCode?: number | string;
+    code?: number | string;
+    message?: string;
+    data?: unknown;
+    error?: { message?: string; status_code?: number | string; code?: number | string };
+  };
+
+  const statusCandidates = [
+    p.status_code,
+    p.statusCode,
+    p.code,
+    p.error?.status_code,
+    p.error?.code,
+  ]
+    .map((v) => Number(v))
+    .filter((v) => Number.isFinite(v));
+
+  const statusFromRaw = raw.match(/\b4221\b|\b4222\b|\b4223\b/)?.[0];
+  const statusCode = statusCandidates[0] ?? (statusFromRaw ? Number(statusFromRaw) : undefined);
+
+  const messageFromData = typeof p.data === "string"
+    ? p.data
+    : (p.data as { message?: string } | undefined)?.message;
+
+  const message =
+    p.message ||
+    p.error?.message ||
+    messageFromData ||
+    "";
+
+  return { statusCode, message, raw };
+};
+
 const mapBackendFieldErrors = (payload: unknown): Record<string, string> => {
   const fieldErrors: Record<string, string> = {};
-  const p = (payload ?? {}) as { status_code?: number | string; message?: string };
-  const statusCode = Number(p.status_code);
-  const message = p.message || "";
-  const raw = JSON.stringify(payload ?? {}).toLowerCase();
+  const { statusCode, message, raw } = parseBackendErrorPayload(payload);
 
   // Exact backend status-code mapping
   if (statusCode === 4222) {
@@ -62,13 +96,25 @@ const mapBackendFieldErrors = (payload: unknown): Record<string, string> => {
   }
 
   // Duplicate/validation mapping for student uniqueness constraints
-  if (raw.includes("candidate_code") || raw.includes("candidate code")) {
+  if (
+    raw.includes("candidate_code") ||
+    raw.includes("candidate code") ||
+    message.toLowerCase().includes("candidate code")
+  ) {
     fieldErrors.candidateCode = message || "Candidate code already exists. Please use a different value.";
   }
-  if (raw.includes("adm_year") || raw.includes("admission year")) {
+  if (
+    raw.includes("adm_year") ||
+    raw.includes("admission year") ||
+    message.toLowerCase().includes("admission year")
+  ) {
     fieldErrors.admissionYear = message || "Admission year already exists for another student record.";
   }
-  if (raw.includes("adm_number") || raw.includes("admission number")) {
+  if (
+    raw.includes("adm_number") ||
+    raw.includes("admission number") ||
+    message.toLowerCase().includes("admission number")
+  ) {
     fieldErrors.admissionNumber = message || "Admission number already exists. Please verify and try again.";
   }
 
@@ -259,9 +305,15 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const mappedFieldErrors = mapBackendFieldErrors(errorData);
+      const responsePayload = await response.json().catch(() => ({}));
+      const normalizedStatus = Number(
+        (responsePayload as { status_code?: number | string; statusCode?: number | string }).status_code ??
+        (responsePayload as { status_code?: number | string; statusCode?: number | string }).statusCode ??
+        response.status
+      );
+
+      if (!response.ok || normalizedStatus >= 400) {
+        const mappedFieldErrors = mapBackendFieldErrors(responsePayload);
 
         if (Object.keys(mappedFieldErrors).length > 0) {
           setErrors((prev) => ({ ...prev, ...mappedFieldErrors }));
@@ -269,7 +321,8 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
           return;
         }
 
-        throw new Error(errorData?.message || 'Failed to complete registration');
+        const { message } = parseBackendErrorPayload(responsePayload);
+        throw new Error(message || 'Failed to complete registration');
       }
 
       await refetchUser();

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createBatch } from "@/lib/api/batch";
 import type { CreateBatchData } from "@/lib/api/batch";
+import { isKnownPopulateResponseIssue } from "@/lib/api/batch";
 import { listUsers } from "@/lib/api/user";
 import type { User } from "@/lib/types/UserTypes";
 import {
@@ -142,7 +143,19 @@ export function AddBatchDialog({ open, onOpenChange, onSuccess }: AddBatchDialog
         if (onSuccess) onSuccess();
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create batch");
+      const message = err instanceof Error ? err.message : "Failed to create batch";
+
+      if (isKnownPopulateResponseIssue(message)) {
+        setSuccessMessage("Batch created successfully. Server returned a response populate error, but the change was saved.");
+        setTimeout(() => {
+          form.reset();
+          setSuccessMessage(null);
+          onOpenChange(false);
+          if (onSuccess) onSuccess();
+        }, 2000);
+      } else {
+        setError(message);
+      }
     } finally {
       setIsLoading(false);
     }

@@ -5,35 +5,135 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookOpen, Users, Calendar, Clock } from "lucide-react";
-import { getRecentUniqueSessions, type UniqueSession } from "@/lib/api/attendance-session";
+import {
+  getRecentUniqueSessions,
+  listAttendanceSessions,
+  type AttendanceSession,
+  type UniqueSession,
+} from "@/lib/api/attendance-session";
 import { format } from "date-fns";
 import QuickStartDialog from "./quick-start-dialog";
+import { useAuth } from "@/lib/auth-context";
 
 interface MyClassesProps {
   onSessionCreated?: () => void;
 }
 
 export default function MyClasses({ onSessionCreated }: MyClassesProps) {
+  const { user } = useAuth();
   const [classes, setClasses] = useState<UniqueSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<UniqueSession | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  useEffect(() => {
-    loadClasses();
-  }, []);
+  const loadClassesFromSessionsFallback = async (): Promise<UniqueSession[]> => {
+    if (!user?.email) return [];
+
+    let allSessions: AttendanceSession[] = [];
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const response = await listAttendanceSessions({ page, limit: 100 });
+      allSessions = [...allSessions, ...response.sessions];
+      totalPages = response.pagination?.totalPages || 1;
+      page += 1;
+    } while (page <= totalPages);
+
+    const teacherSessions = allSessions.filter((session) => {
+      const creator = session.created_by as unknown as
+        | string
+        | {
+            _id?: string;
+            email?: string;
+            user?: {
+              _id?: string;
+              email?: string;
+            };
+          }
+        | undefined;
+
+      const createdByUserId =
+        typeof creator === "string"
+          ? creator
+          : (creator?.user?._id || creator?._id);
+
+      const createdByEmail =
+        typeof creator === "string"
+          ? undefined
+          : (creator?.user?.email || creator?.email)?.toLowerCase();
+
+      if (user._id && createdByUserId) {
+        return createdByUserId === user._id;
+      }
+
+      return createdByEmail === user.email.toLowerCase();
+    });
+
+    const groups = new Map<string, UniqueSession>();
+
+    teacherSessions.forEach((session) => {
+      const batchId = session.batch?._id;
+      const subjectId = session.subject?._id;
+      if (!batchId || !subjectId) return;
+
+      const key = `${batchId}-${subjectId}`;
+      const existing = groups.get(key);
+      const latestSession = existing
+        ? (new Date(session.start_time) > new Date(existing.latestSession) ? session.start_time : existing.latestSession)
+        : session.start_time;
+
+      groups.set(key, {
+        batch: {
+          _id: batchId,
+          name: session.batch.name,
+          department: (session.batch as unknown as { department?: string }).department || "",
+          adm_year: Number((session.batch as unknown as { adm_year?: number; year?: number }).adm_year || session.batch.year || 0),
+        },
+        subject: {
+          _id: subjectId,
+          name: session.subject.name,
+          subject_code: (session.subject as unknown as { subject_code?: string; code?: string }).subject_code || session.subject.code,
+          sem: String((session.subject as unknown as { sem?: string | number }).sem || "-"),
+          type: String((session.subject as unknown as { type?: string }).type || session.session_type || "regular"),
+        },
+        sessionCount: (existing?.sessionCount || 0) + 1,
+        latestSession,
+      });
+    });
+
+    return Array.from(groups.values()).sort(
+      (a, b) => new Date(b.latestSession).getTime() - new Date(a.latestSession).getTime()
+    );
+  };
 
   const loadClasses = async () => {
     setLoading(true);
     try {
       const data = await getRecentUniqueSessions();
-      setClasses(data);
+      if (data.length > 0) {
+        setClasses(data);
+      } else {
+        const fallbackData = await loadClassesFromSessionsFallback();
+        setClasses(fallbackData);
+      }
     } catch (error) {
       console.error("Failed to load classes:", error);
+      try {
+        const fallbackData = await loadClassesFromSessionsFallback();
+        setClasses(fallbackData);
+      } catch (fallbackError) {
+        console.error("My Classes fallback failed:", fallbackError);
+        setClasses([]);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadClasses();
+  }, [user?._id, user?.email]);
 
   const handleClassClick = (classItem: UniqueSession) => {
     setSelectedClass(classItem);
@@ -102,7 +202,7 @@ export default function MyClasses({ onSessionCreated }: MyClassesProps) {
                         {classItem.batch.name}
                       </span>
                       <Badge variant="outline" className="ml-auto shrink-0">
-                        S{classItem.subject.sem}
+                        S{classItem.subject.sem || "-"}
                       </Badge>
                     </div>
 

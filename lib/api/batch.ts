@@ -68,6 +68,18 @@ export interface UpdateBatchData {
   staff_advisor?: string;
 }
 
+export function isKnownPopulateResponseIssue(message?: string): boolean {
+  const m = (message || "").toLowerCase();
+  if (!m) return false;
+
+  return (
+    m.includes("strictpopulate") ||
+    m.includes("cannot populate") ||
+    m.includes("failed to retrieve batch") ||
+    (m.includes("populate") && (m.includes("batch") || m.includes("staff_advisor") || m.includes("path")))
+  );
+}
+
 /**
  * List batches with pagination and filtering (staff only)
  */
@@ -189,7 +201,14 @@ export async function createBatchesBulk(batches: Partial<CreateBatchData>[]): Pr
       const res = await createBatch(batch as CreateBatchData);
       success.push({ name: batch.name || 'Unknown', batchId: res._id });
     } catch (err: any) {
-      failed.push({ name: batch.name || 'Unknown', error: err.message });
+      const message = err?.message || 'Failed to create batch';
+
+      // Backend can persist successfully but fail while populating response payload.
+      if (isKnownPopulateResponseIssue(message)) {
+        success.push({ name: batch.name || 'Unknown' });
+      } else {
+        failed.push({ name: batch.name || 'Unknown', error: message });
+      }
     }
   }
 
