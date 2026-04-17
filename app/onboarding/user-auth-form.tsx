@@ -129,70 +129,22 @@ const mapBackendFieldErrors = (payload: unknown): Record<string, string> => {
     raw.includes("candidate_code") ||
     raw.includes("candidate code") ||
     lowerMessage.includes("candidate code");
-  const isUniquenessConflictText =
-    lowerMessage.includes("already exist") ||
-    lowerMessage.includes("already exists");
-
-  // Production backend can sometimes return only one duplicate signal even when both collide.
-  // In that case, mark both fields to avoid misleading the user.
-  if (
-    (statusCode === 4221 || statusCode === 4222 || statusCode === 4223 || isUniquenessConflictText) &&
-    (hasAdmissionSignal || hasCandidateSignal)
-  ) {
-    const combined = selectFieldErrorMessage(
-      message,
-      "Admission number and candidate code already exist for another student",
-      ["admission", "candidate", "number", "code"]
-    );
-
-    if (hasAdmissionSignal && hasCandidateSignal) {
-      fieldErrors.admissionNumber = combined;
-      fieldErrors.candidateCode = combined;
-      return fieldErrors;
-    }
-
-    if (statusCode === 4223) {
-      fieldErrors.admissionNumber = combined;
-      fieldErrors.candidateCode = combined;
-      return fieldErrors;
-    }
-
-    // Heuristic fallback for inconsistent production responses.
-    if (statusCode === 4221 || statusCode === 4222) {
-      fieldErrors.admissionNumber = combined;
-      fieldErrors.candidateCode = combined;
-      return fieldErrors;
-    }
-  }
-
-  // Always prioritize combined duplicate mapping when both signals exist,
-  // even if backend status code is incorrectly sent as 4221/4222.
-  if (hasAdmissionSignal && hasCandidateSignal) {
-    const combined = selectFieldErrorMessage(
-      message,
-      "Admission number and candidate code already exist for another student",
-      ["admission", "candidate", "number", "code"]
-    );
-    fieldErrors.admissionNumber = combined;
-    fieldErrors.candidateCode = combined;
-    return fieldErrors;
-  }
 
   // Exact backend status-code mapping
-  if (statusCode === 4222) {
-    fieldErrors.candidateCode = selectFieldErrorMessage(
-      message,
-      "Candidate code already exists for another student",
-      ["candidate", "code"]
-    );
-    return fieldErrors;
-  }
-
   if (statusCode === 4221) {
     fieldErrors.admissionNumber = selectFieldErrorMessage(
       message,
       "Admission number already exists for another student",
       ["admission", "number"]
+    );
+    return fieldErrors;
+  }
+
+  if (statusCode === 4222) {
+    fieldErrors.candidateCode = selectFieldErrorMessage(
+      message,
+      "Candidate code already exists for another student",
+      ["candidate", "code"]
     );
     return fieldErrors;
   }
@@ -205,6 +157,18 @@ const mapBackendFieldErrors = (payload: unknown): Record<string, string> => {
     );
     fieldErrors.admissionNumber = combinedMessage;
     fieldErrors.candidateCode = combinedMessage;
+    return fieldErrors;
+  }
+
+  // Fallback only when backend does not provide a reliable status code.
+  if (hasAdmissionSignal && hasCandidateSignal) {
+    const combined = selectFieldErrorMessage(
+      message,
+      "Admission number and candidate code already exist for another student",
+      ["admission", "candidate", "number", "code"]
+    );
+    fieldErrors.admissionNumber = combined;
+    fieldErrors.candidateCode = combined;
     return fieldErrors;
   }
 
