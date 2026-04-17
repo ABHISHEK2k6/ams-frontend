@@ -11,6 +11,7 @@ import {
   type AttendanceSession,
   type UniqueSession,
 } from "@/lib/api/attendance-session";
+import { getSubjectById } from "@/lib/api/subject";
 import { format } from "date-fns";
 import QuickStartDialog from "./quick-start-dialog";
 import { useAuth } from "@/lib/auth-context";
@@ -75,6 +76,64 @@ export default function MyClasses({ onSessionCreated }: MyClassesProps) {
         sem: normalizedSem,
       },
     };
+  };
+
+  const enrichSubjectMetadata = async (items: UniqueSession[]): Promise<UniqueSession[]> => {
+    const uniqueIdsToEnrich = Array.from(
+      new Set(
+        items
+          .filter((item) => {
+            const code = normalizeSubjectCode(item.subject);
+            const sem = normalizeSemesterLabel(item.subject);
+            return !!item.subject?._id && (!code || sem === "-");
+          })
+          .map((item) => item.subject._id)
+      )
+    );
+
+    if (uniqueIdsToEnrich.length === 0) {
+      return items;
+    }
+
+    const subjectMap = new Map<string, { subject_code?: string; sem?: string | number }>();
+
+    await Promise.all(
+      uniqueIdsToEnrich.map(async (id) => {
+        try {
+          const subject = await getSubjectById(id);
+          subjectMap.set(id, {
+            subject_code: subject.subject_code,
+            sem: subject.sem,
+          });
+        } catch {
+          // Keep original values when enrichment endpoint fails.
+        }
+      })
+    );
+
+    return items.map((item) => {
+      const enriched = subjectMap.get(item.subject._id);
+      if (!enriched) return item;
+
+      const normalizedCode =
+        normalizeSubjectCode({
+          subject_code: enriched.subject_code,
+          code: item.subject.subject_code,
+        }) || item.subject.subject_code;
+      const normalizedSem = normalizeSemesterLabel({
+        sem: enriched.sem,
+        semester: item.subject.sem,
+      });
+
+      return {
+        ...item,
+        subject: {
+          ...item.subject,
+          subject_code: normalizedCode,
+          sem: normalizedSem,
+        },
+      };
+    });
   };
 
   const loadClassesFromSessionsFallback = async (): Promise<UniqueSession[]> => {
@@ -163,16 +222,22 @@ export default function MyClasses({ onSessionCreated }: MyClassesProps) {
     try {
       const data = await getRecentUniqueSessions();
       if (data.length > 0) {
-        setClasses(data.map(sanitizeUniqueSession));
+        const sanitized = data.map(sanitizeUniqueSession);
+        const enriched = await enrichSubjectMetadata(sanitized);
+        setClasses(enriched);
       } else {
         const fallbackData = await loadClassesFromSessionsFallback();
-        setClasses(fallbackData.map(sanitizeUniqueSession));
+        const sanitized = fallbackData.map(sanitizeUniqueSession);
+        const enriched = await enrichSubjectMetadata(sanitized);
+        setClasses(enriched);
       }
     } catch (error) {
       console.error("Failed to load classes:", error);
       try {
         const fallbackData = await loadClassesFromSessionsFallback();
-        setClasses(fallbackData.map(sanitizeUniqueSession));
+        const sanitized = fallbackData.map(sanitizeUniqueSession);
+        const enriched = await enrichSubjectMetadata(sanitized);
+        setClasses(enriched);
       } catch (fallbackError) {
         console.error("My Classes fallback failed:", fallbackError);
         setClasses([]);
