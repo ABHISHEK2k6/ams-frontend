@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { authClient } from '@/lib/auth-client';
 import { useRouter, usePathname } from 'next/navigation';
 import { IncompleteProfileResponse, User } from "./types/UserTypes";
+import { getPublicConfig, type ConfigMap } from "./api/config";
 
 type AuthContextType = {
   session: unknown;
@@ -12,6 +13,8 @@ type AuthContextType = {
   isLoading: boolean;
   error: string | null;
   refetchUser: () => Promise<void>;
+  config: ConfigMap;
+  refetchConfig: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,20 +27,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [incompleteProfile, setIncompleteProfile] = useState<IncompleteProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [config, setConfig] = useState<ConfigMap>({});
   const inFlightRef = useRef(false);
   const lastFetchTsRef = useRef(0);
   const router = useRouter();
   const pathname = usePathname();
+
   const pathnameRef = useRef(pathname);
+  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
+  useEffect(() => { sessionRef.current = session; }, [session]);
 
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
-
-  useEffect(() => {
-    pathnameRef.current = pathname;
-  }, [pathname]);
-
+  const refetchConfig = useCallback(async () => {
+    try {
+      const map = await getPublicConfig();
+      setConfig(map);
+    } catch {}
+  }, []);
 
   const fetchUser = useCallback(async () => {
     if (inFlightRef.current) return;
@@ -71,13 +76,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
+      // Fetch user and config in parallel
+      const [response] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/user`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        }),
+        refetchConfig(),
+      ]);
 
       const responseData = await response.json();
       const userData = responseData?.data as User | undefined;
@@ -113,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       inFlightRef.current = false;
     }
-  }, [router]);
+  }, [router, refetchConfig]);
 
   useEffect(() => {
     if (!isPending) {
@@ -128,6 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading: isPending || isLoading,
     error,
     refetchUser: fetchUser,
+    config,
+    refetchConfig,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
