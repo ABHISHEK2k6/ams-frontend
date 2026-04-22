@@ -11,6 +11,7 @@ import { listBatches, type Batch } from "@/lib/api/batch";
 import { listSubjects, type Subject } from "@/lib/api/subject";
 import { format, setHours, setMinutes, setSeconds, setMilliseconds } from "date-fns";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 interface CreateClassDialogProps {
   onClassCreated?: () => void;
@@ -21,6 +22,7 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [allSubjects, setAllSubjects] = useState<Subject[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [batchId, setBatchId] = useState("");
@@ -28,6 +30,8 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
   const [duration, setDuration] = useState<number>(1);
   const [startHour, setStartHour] = useState<number>(new Date().getHours());
   const [sessionType, setSessionType] = useState<SessionType>("regular");
+  const { user } = useAuth();
+  const teacherDept = (user?.profile as any)?.department;
 
   useEffect(() => {
     if (open) {
@@ -44,10 +48,11 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
     setLoadingData(true);
     try {
       const [batchesData, subjectsData] = await Promise.all([
-        listBatches({ limit: 100 }),
-        listSubjects({ limit: 100 }),
+        listBatches({ limit: 100, department: teacherDept }),
+        listSubjects({ limit: 100, department: teacherDept }),
       ]);
       setBatches(batchesData.batches);
+      setAllSubjects(subjectsData.subjects);
       setSubjects(subjectsData.subjects);
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -55,6 +60,21 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
       setLoadingData(false);
     }
   };
+
+  const selectedBatch = batches.find((b) => b._id === batchId);
+  const selectedSubject = subjects.find((s) => s._id === subjectId);
+
+  useEffect(() => {
+    if (selectedBatch && selectedBatch.scheme) {
+      const filtered = allSubjects.filter(s => s.scheme === selectedBatch.scheme);
+      setSubjects(filtered);
+      if (subjectId && !filtered.some(s => s._id === subjectId)) {
+        setSubjectId("");
+      }
+    } else {
+      setSubjects(allSubjects);
+    }
+  }, [batchId, selectedBatch, allSubjects]);
 
   const getStartTimePreview = () => {
     let t = setHours(new Date(), startHour);
@@ -66,9 +86,6 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
 
   const getEndTimePreview = () =>
     new Date(getStartTimePreview().getTime() + duration * 60 * 60 * 1000);
-
-  const selectedBatch = batches.find((b) => b._id === batchId);
-  const selectedSubject = subjects.find((s) => s._id === subjectId);
 
   const handleSubmit = async () => {
     if (!batchId || !subjectId) return;

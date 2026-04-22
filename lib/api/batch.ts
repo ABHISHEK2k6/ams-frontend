@@ -24,6 +24,7 @@ export interface Batch {
   adm_year: number;
   department: Department;
   staff_advisor: StaffAdvisor;
+  scheme: string;
 }
 
 export interface ApiResponse<T> {
@@ -58,6 +59,7 @@ export interface CreateBatchData {
   adm_year: number;
   department: Department;
   staff_advisor: string; // Teacher ObjectId
+  scheme: string;
 }
 
 export interface UpdateBatchData {
@@ -66,6 +68,7 @@ export interface UpdateBatchData {
   adm_year?: number;
   department?: Department;
   staff_advisor?: string;
+  scheme?: string;
 }
 
 function extractApiMessage(payload: unknown): string {

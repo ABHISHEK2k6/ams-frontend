@@ -70,6 +70,7 @@ const updateBatchSchema = z.object({
   adm_year: z.number().min(2000).max(2100),
   department: z.enum(["CSE", "ECE", "IT"] as const),
   staff_advisor: z.string().min(1, "Staff advisor is required"),
+  scheme: z.string().min(1, "Scheme is required"),
 });
 
 type UpdateBatchFormValues = z.infer<typeof updateBatchSchema>;
@@ -130,6 +131,7 @@ export function BatchDialog({
       adm_year:      new Date().getFullYear(),
       department:    "CSE",
       staff_advisor: "",
+      scheme:        "",
     },
   });
 
@@ -198,6 +200,7 @@ export function BatchDialog({
       adm_year:      batch.adm_year,
       department:    batch.department,
       staff_advisor: batch.staff_advisor?._id || "",
+      scheme:        batch.scheme || "",
     });
 
     setError(null);
@@ -305,7 +308,7 @@ export function BatchDialog({
             <DialogDescription className="text-sm text-muted-foreground mt-0.5">
               {isEditing
                 ? "Update batch details"
-                : `${batch.department} · Admission Year ${batch.adm_year}${batch.id ? ` · ID: ${batch.id}` : ""}`}
+                : `${batch.department} · Admission Year ${batch.adm_year} · Scheme ${batch.scheme || "—"}${batch.id ? ` · ID: ${batch.id}` : ""}`}
             </DialogDescription>
           </div>
         </div>
@@ -361,6 +364,20 @@ export function BatchDialog({
                               {...field}
                               onChange={(e) => field.onChange(parseInt(e.target.value) || 2000)}
                             />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="scheme"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Scheme *</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -485,6 +502,11 @@ export function BatchDialog({
                     icon={<BookOpen className="h-4 w-4" />}
                     label="Department"
                     value={batch.department}
+                  />
+                  <StatCard
+                    icon={<BookOpen className="h-4 w-4" />}
+                    label="Scheme"
+                    value={batch.scheme || "—"}
                   />
                   <StatCard
                     icon={<Calendar className="h-4 w-4" />}

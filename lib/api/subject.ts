@@ -15,7 +15,8 @@ export interface Subject {
   type: SubjectType;
   total_marks: number;
   pass_mark: number;
-  faculty_in_charge: string[];
+  scheme: string;
+  department: string;
 }
 
 export interface ApiResponse<T> {
@@ -41,6 +42,8 @@ export interface ListSubjectsParams {
   limit?: number;
   sem?: string;
   type?: SubjectType;
+  scheme?: string;
+  department?: string;
 }
 
 export interface CreateSubjectData {
@@ -50,7 +53,8 @@ export interface CreateSubjectData {
   type: SubjectType;
   total_marks: number;
   pass_mark: number;
-  faculty_in_charge?: string[];
+  scheme: string;
+  department: string;
 }
 
 export interface UpdateSubjectData {
@@ -59,7 +63,8 @@ export interface UpdateSubjectData {
   type?: SubjectType;
   total_marks?: number;
   pass_mark?: number;
-  faculty_in_charge?: string[];
+  scheme?: string;
+  department?: string;
 }
 
 /**
@@ -71,6 +76,8 @@ export async function listSubjects(params?: ListSubjectsParams): Promise<ListSub
   if (params?.limit) queryParams.append('limit', params.limit.toString());
   if (params?.sem) queryParams.append('sem', params.sem);
   if (params?.type) queryParams.append('type', params.type);
+  if (params?.scheme) queryParams.append('scheme', params.scheme);
+  if (params?.department) queryParams.append('department', params.department);
 
   const response = await fetch(`${API_BASE}/academics/subject?${queryParams.toString()}`, {
     method: 'GET',

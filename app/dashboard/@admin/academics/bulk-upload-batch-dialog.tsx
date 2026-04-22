@@ -48,6 +48,7 @@ type PreviewRow = {
   adm_year?: number;
   department?: Department;
   staff_advisor: string;
+  scheme?: string;
   errors: string[];
   payload?: CreateBatchData;
 };
@@ -57,6 +58,7 @@ const TEMPLATE_HEADERS = [
   "Name",
   "Adm Year",
   "Department",
+  "Scheme",
   "Staff Advisor Email",
 ] as const;
 
@@ -76,6 +78,7 @@ const CSV_HEADER_MAP: Record<string, string> = {
   "staff advisor email": "staff_advisor_email",
   "email": "staff_advisor_email",
   "advisor email": "staff_advisor_email",
+  "scheme": "scheme",
 };
 
 function buildTemplateCsv(): string {
@@ -84,6 +87,7 @@ function buildTemplateCsv(): string {
     "Name": "24CSE-A",
     "Adm Year": "2024",
     "Department": "CSE",
+    "Scheme": "2019",
     "Staff Advisor Email": "teacher@example.com",
   };
 
@@ -207,6 +211,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
       const name = (r.name || "").trim();
       const adm_year_raw = (r.adm_year || "").trim();
       const departmentRaw = (r.department || "").trim().toUpperCase();
+      const scheme = (r.scheme || "").trim();
       const staff_advisor_email = (r.staff_advisor_email || "").trim().toLowerCase();
 
       const errors: string[] = [];
@@ -216,6 +221,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
       if (!name) errors.push("Name is required");
       if (!adm_year_raw) errors.push("Adm Year is required");
       if (!departmentRaw) errors.push("Department is required");
+      if (!scheme) errors.push("Scheme is required");
       if (!staff_advisor_email) errors.push("Staff Advisor Email is required");
 
       let adm_year: number | undefined;
@@ -248,13 +254,14 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
       }
 
       let payload: CreateBatchData | undefined = undefined;
-      if (!errors.length && adm_year && department && staff_advisor) {
+      if (!errors.length && adm_year && department && staff_advisor && scheme) {
         payload = {
           id: idRaw || undefined,
           name,
           adm_year,
           department,
           staff_advisor,
+          scheme,
         };
       }
 
@@ -265,6 +272,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
         adm_year,
         department,
         staff_advisor,
+        scheme,
         errors,
         payload,
       };
@@ -516,6 +524,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
                       <TableHead>Batch ID</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Department</TableHead>
+                      <TableHead>Scheme</TableHead>
                       <TableHead>Adm Year</TableHead>
                       <TableHead>Errors</TableHead>
                     </TableRow>
@@ -527,6 +536,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
                         <TableCell>{r.id || "(auto)"}</TableCell>
                         <TableCell>{r.name || "—"}</TableCell>
                         <TableCell>{r.department || "—"}</TableCell>
+                        <TableCell>{r.scheme || "—"}</TableCell>
                         <TableCell>{r.adm_year || "—"}</TableCell>
                         <TableCell>
                           {r.errors.length ? (

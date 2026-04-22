@@ -47,6 +47,8 @@ type PreviewRow = {
   type?: SubjectType;
   total_marks?: number;
   pass_mark?: number;
+  scheme?: string;
+  department?: string;
   errors: string[];
   payload?: CreateSubjectData;
 };
@@ -58,6 +60,8 @@ const TEMPLATE_HEADERS = [
   "Type",
   "Total Marks",
   "Pass Mark",
+  "Scheme",
+  "Department",
 ] as const;
 
 function normalizeHeader(value: string): string {
@@ -74,6 +78,8 @@ const CSV_HEADER_MAP: Record<string, string> = {
   "type": "type",
   "total marks": "total_marks",
   "pass mark": "pass_mark",
+  "scheme": "scheme",
+  "department": "department",
 };
 
 function buildTemplateCsv(): string {
@@ -84,6 +90,8 @@ function buildTemplateCsv(): string {
     "Type": "Theory",
     "Total Marks": "100",
     "Pass Mark": "40",
+    "Scheme": "2019",
+    "Department": "CSE",
   };
 
   const csv = Papa.unparse({
@@ -162,6 +170,8 @@ export function BulkUploadSubjectDialog({ open, onOpenChange, onSuccess }: BulkU
       const typeRaw = (r.type || "").trim();
       const totalMarksRaw = (r.total_marks || "").trim();
       const passMarkRaw = (r.pass_mark || "").trim();
+      const scheme = (r.scheme || "").trim();
+      const department = (r.department || "").trim();
 
       const errors: string[] = [];
       if (!name) errors.push("Name is required");
@@ -170,6 +180,8 @@ export function BulkUploadSubjectDialog({ open, onOpenChange, onSuccess }: BulkU
       if (!typeRaw) errors.push("Type is required");
       if (!totalMarksRaw) errors.push("Total Marks is required");
       if (!passMarkRaw) errors.push("Pass Mark is required");
+      if (!scheme) errors.push("Scheme is required");
+      if (!department) errors.push("Department is required");
 
       let type: SubjectType | undefined;
       if (typeRaw) {
@@ -192,7 +204,7 @@ export function BulkUploadSubjectDialog({ open, onOpenChange, onSuccess }: BulkU
       }
 
       let payload: CreateSubjectData | undefined = undefined;
-      if (!errors.length && type && total_marks !== undefined && pass_mark !== undefined) {
+      if (!errors.length && type && total_marks !== undefined && pass_mark !== undefined && scheme && department) {
         payload = {
           name,
           sem,
@@ -200,7 +212,8 @@ export function BulkUploadSubjectDialog({ open, onOpenChange, onSuccess }: BulkU
           type,
           total_marks,
           pass_mark,
-          faculty_in_charge: [] // CSV bulk upload might not easily set faculty_in_charge
+          scheme,
+          department,
         };
       }
 
@@ -212,6 +225,8 @@ export function BulkUploadSubjectDialog({ open, onOpenChange, onSuccess }: BulkU
         type,
         total_marks,
         pass_mark,
+        scheme,
+        department,
         errors,
         payload,
       };
@@ -384,6 +399,8 @@ export function BulkUploadSubjectDialog({ open, onOpenChange, onSuccess }: BulkU
                       <TableHead>Code</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Scheme</TableHead>
+                      <TableHead>Dept</TableHead>
                       <TableHead>Errors</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -394,6 +411,8 @@ export function BulkUploadSubjectDialog({ open, onOpenChange, onSuccess }: BulkU
                         <TableCell>{r.subject_code || "—"}</TableCell>
                         <TableCell>{r.name || "—"}</TableCell>
                         <TableCell>{r.type || "—"}</TableCell>
+                        <TableCell>{r.scheme || "—"}</TableCell>
+                        <TableCell>{r.department || "—"}</TableCell>
                         <TableCell>
                           {r.errors.length ? (
                             <Badge variant="destructive">{r.errors.length} issue(s)</Badge>

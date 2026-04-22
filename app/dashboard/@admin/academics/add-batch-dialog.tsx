@@ -44,6 +44,7 @@ const createBatchSchema = z.object({
   adm_year: z.number().min(2000, "Year must be at least 2000").max(2100, "Year must be at most 2100"),
   department: z.enum(["CSE", "ECE", "IT"] as const),
   staff_advisor: z.string().min(1, "Staff advisor is required"),
+  scheme: z.string().min(1, "Scheme is required"),
 });
 
 type CreateBatchFormValues = z.infer<typeof createBatchSchema>;
@@ -69,6 +70,7 @@ export function AddBatchDialog({ open, onOpenChange, onSuccess }: AddBatchDialog
       adm_year: new Date().getFullYear(),
       department: "CSE",
       staff_advisor: "",
+      scheme: "",
     },
   });
 
@@ -214,6 +216,20 @@ export function AddBatchDialog({ open, onOpenChange, onSuccess }: AddBatchDialog
                       {...field}
                       onChange={(e) => field.onChange(parseInt(e.target.value) || new Date().getFullYear())}
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="scheme"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Scheme *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="2019" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

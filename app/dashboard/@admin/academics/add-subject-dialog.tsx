@@ -40,7 +40,8 @@ const createSubjectSchema = z.object({
   type: z.enum(["Theory", "Practical"] as const),
   total_marks: z.number().min(0, "Total marks must be at least 0"),
   pass_mark: z.number().min(0, "Pass mark must be at least 0"),
-  faculty_in_charge: z.array(z.object({ name: z.string() })).optional(),
+  scheme: z.string().min(1, "Scheme is required"),
+  department: z.string().min(1, "Department is required"),
 }).refine((data) => data.pass_mark <= data.total_marks, {
   message: "Pass mark cannot be greater than total marks",
   path: ["pass_mark"],
@@ -68,13 +69,9 @@ export function AddSubjectDialog({ open, onOpenChange, onSuccess }: AddSubjectDi
       type: "Theory",
       total_marks: 100,
       pass_mark: 40,
-      faculty_in_charge: [],
+      scheme: "",
+      department: "CSE",
     },
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "faculty_in_charge",
   });
 
   const handleDialogChange = (isOpen: boolean) => {
@@ -92,13 +89,7 @@ export function AddSubjectDialog({ open, onOpenChange, onSuccess }: AddSubjectDi
       setError(null);
       setSuccessMessage(null);
 
-      const faculty = data.faculty_in_charge?.map(f => f.name).filter(name => name.trim() !== "") || [];
-      const payload = {
-        ...data,
-        faculty_in_charge: faculty.length > 0 ? faculty : undefined,
-      };
-
-      await createSubject(payload);
+      await createSubject(data);
       
       setSuccessMessage("Subject created successfully!");
       
@@ -246,48 +237,43 @@ export function AddSubjectDialog({ open, onOpenChange, onSuccess }: AddSubjectDi
               />
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <FormLabel>Faculty In Charge (Optional)</FormLabel>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => append({ name: "" })}
-                  className="gap-1"
-                >
-                  <Plus className="h-3 w-3" />
-                  Add Faculty
-                </Button>
-              </div>
-              
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex gap-2">
-                  <FormField
-                    control={form.control}
-                    name={`faculty_in_charge.${index}.name`}
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormControl>
-                          <Input placeholder="Dr. John Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {fields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => remove(index)}
-                      className="text-destructive"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="scheme"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Scheme *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="2019" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="department"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Department *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="CSE">CSE</SelectItem>
+                        <SelectItem value="ECE">ECE</SelectItem>
+                        <SelectItem value="IT">IT</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <DialogFooter>
