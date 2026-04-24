@@ -437,6 +437,19 @@ export default function AttendancePage() {
                       <span className="text-sm text-muted-foreground truncate">{group.batchName}</span>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const subjectId = group.sessions[0].subject._id;
+                          const batchId = group.sessions[0].batch._id;
+                          router.push(`/dashboard/attendance/report/${subjectId}/${batchId}`);
+                        }}
+                      >
+                        View Report
+                      </Button>
                       <Badge variant="outline">
                         {group.sessions.length} {group.sessions.length === 1 ? "session" : "sessions"}
                       </Badge>

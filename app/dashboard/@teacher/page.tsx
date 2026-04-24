@@ -12,13 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
-type TeacherAttendanceCard = {
-    className: string;
-    classCode: string;
-    totalClasses: number;
-    averageAttendance: number;
-    trend: "up" | "down" | "stable";
-};
+import { getTeacherOverview, type TeacherAttendanceOverview as TeacherAttendanceCard } from "@/lib/api/attendance-stats";
 
 type TeacherNotificationItem = {
     id: string;
@@ -118,102 +112,7 @@ export default function TeacherHome() {
                     return;
                 }
 
-                const sessionRecordStats = await Promise.all(
-                    teacherSessions.map(async (session) => {
-                        let presentCount = 0;
-                        let totalCount = 0;
-                        let recPage = 1;
-                        let recTotalPages = 1;
-
-                        do {
-                            const recordsRes = await listAttendanceRecords({
-                                session: session._id,
-                                page: recPage,
-                                limit: 100,
-                            });
-
-                            recordsRes.records.forEach((record) => {
-                                totalCount += 1;
-                                if (record.status === "present") {
-                                    presentCount += 1;
-                                }
-                            });
-
-                            recTotalPages = recordsRes.pagination?.totalPages || 1;
-                            recPage += 1;
-                        } while (recPage <= recTotalPages);
-
-                        const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
-
-                        return {
-                            session,
-                            percentage,
-                            totalCount,
-                        };
-                    })
-                );
-
-                const subjectAggregation = new Map<
-                    string,
-                    {
-                        className: string;
-                        classCode: string;
-                        totalClasses: number;
-                        present: number;
-                        total: number;
-                        sessionStats: Array<{ startTime: string; percentage: number }>;
-                    }
-                >();
-
-                sessionRecordStats.forEach(({ session, percentage, totalCount }) => {
-                    if (!session.subject?._id) return;
-
-                    const key = session.subject._id;
-                    const current = subjectAggregation.get(key) ?? {
-                        className: session.subject.name,
-                        classCode: session.subject.code,
-                        totalClasses: 0,
-                        present: 0,
-                        total: 0,
-                        sessionStats: [],
-                    };
-
-                    current.totalClasses += 1;
-                    current.total += totalCount;
-                    current.present += Math.round((percentage / 100) * totalCount);
-                    current.sessionStats.push({
-                        startTime: session.start_time,
-                        percentage,
-                    });
-
-                    subjectAggregation.set(key, current);
-                });
-
-                const nextAttendanceData: TeacherAttendanceCard[] = Array.from(subjectAggregation.values())
-                    .map((item) => {
-                        const averageAttendance = item.total > 0 ? Math.round((item.present / item.total) * 100) : 0;
-
-                        const sortedStats = [...item.sessionStats].sort(
-                            (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-                        );
-
-                        let trend: "up" | "down" | "stable" = "stable";
-                        if (sortedStats.length >= 2) {
-                            const recent = sortedStats[0].percentage;
-                            const previous = sortedStats[1].percentage;
-                            if (recent > previous + 2) trend = "up";
-                            else if (recent < previous - 2) trend = "down";
-                        }
-
-                        return {
-                            className: item.className,
-                            classCode: item.classCode,
-                            totalClasses: item.totalClasses,
-                            averageAttendance,
-                            trend,
-                        };
-                    })
-                    .sort((a, b) => a.className.localeCompare(b.className));
+                const overviewData = await getTeacherOverview();
 
                 const nextNotifications: TeacherNotificationItem[] = teacherSessions
                     .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
@@ -228,7 +127,7 @@ export default function TeacherHome() {
                         targetClass: session.subject.code,
                     }));
 
-                setAttendanceData(nextAttendanceData);
+                setAttendanceData(overviewData);
                 setNotifications(nextNotifications);
             } catch (err) {
                 console.error("Failed to load teacher dashboard:", err);

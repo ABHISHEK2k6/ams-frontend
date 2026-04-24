@@ -55,11 +55,16 @@ export async function getUserById(id: string): Promise<User> {
     credentials: 'include',
   });
 
+  const result: ApiResponse<User> = await response.json();
+
   if (!response.ok) {
-    throw new Error('Failed to fetch user');
+    // Sometimes the backend returns 422 but includes the user data anyway
+    if (response.status === 422 && result.data) {
+      return result.data;
+    }
+    throw new Error(result.message || 'Failed to fetch user');
   }
 
-  const result: ApiResponse<User> = await response.json();
   return result.data;
 }
 

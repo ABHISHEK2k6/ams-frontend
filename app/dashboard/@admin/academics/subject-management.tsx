@@ -156,8 +156,7 @@ export function SubjectManagement() {
       subject.name.toLowerCase().includes(query) ||
       subject.subject_code.toLowerCase().includes(query) ||
       subject.sem.toLowerCase().includes(query) ||
-      subject.type.toLowerCase().includes(query) ||
-      subject.faculty_in_charge.some(faculty => faculty.toLowerCase().includes(query))
+      subject.type.toLowerCase().includes(query)
     );
   });
 

@@ -5,18 +5,12 @@ import { useAuth } from "@/lib/auth-context";
 import GreetingHeader from "@/components/student/greeting-header";
 import AttendanceOverview from "@/components/student/attendance-overview";
 import NotificationsList from "@/components/student/notifications-list";
-import { listAttendanceRecords, type AttendanceRecord } from "@/lib/api/attendance-record";
+import { getStudentStats, type SubjectAttendanceStats } from "@/lib/api/attendance-stats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
-type SubjectAttendance = {
-  subjectName: string;
-  totalClasses: number;
-  attendedClasses: number;
-  percentage: number;
-};
 
 const dummyNotifications = [
   {
@@ -41,7 +35,7 @@ const dummyNotifications = [
 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
-  const [attendance, setAttendance] = useState<SubjectAttendance[]>([]);
+  const [attendance, setAttendance] = useState<SubjectAttendanceStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,86 +46,8 @@ export default function StudentDashboardPage() {
           throw new Error("User information not available");
         }
 
-        // Fetch all attendance records with pagination (extracts subjects from records)
-        let allRecords: AttendanceRecord[] = [];
-        let recordPage = 1;
-        let recordTotalPages = 1;
-        do {
-          const { records, pagination } = await listAttendanceRecords({
-            student: user._id,
-            limit: 100,
-            page: recordPage,
-          });
-          allRecords = [...allRecords, ...records];
-          recordTotalPages = pagination?.totalPages || 1;
-          recordPage++;
-        } while (recordPage <= recordTotalPages);
-
-        if (!allRecords || allRecords.length === 0) {
-          setAttendance([]);
-          setLoading(false);
-          return;
-        }
-
-        // Group attendance by subject name and code
-        const attendanceBySubject = new Map<string, { present: number; total: number }>();
-
-        allRecords.forEach((record) => {
-          // Skip records without session or subject data
-          if (!record.session || typeof record.session === 'string' || !record.session.subject) {
-            console.warn("Skipping record with missing session/subject data:", record);
-            return;
-          }
-
-          const subjectId = record.session.subject._id;
-          const current = attendanceBySubject.get(subjectId);
-
-          if (current) {
-            current.total += 1;
-            if (record.status === "present") {
-              current.present += 1;
-            }
-          } else {
-            attendanceBySubject.set(subjectId, {
-              present: record.status === "present" ? 1 : 0,
-              total: 1,
-            });
-          }
-        });
-
-        // Get unique subjects from records and calculate attendance
-        const uniqueSubjectsMap = new Map<string, { name: string; code: string }>();
-        allRecords.forEach((record) => {
-          // Skip records without session or subject data
-          if (!record.session || typeof record.session === 'string' || !record.session.subject) {
-            return;
-          }
-
-          const subjectId = record.session.subject._id;
-          if (!uniqueSubjectsMap.has(subjectId)) {
-            uniqueSubjectsMap.set(subjectId, {
-              name: record.session.subject.name,
-              code: record.session.subject.code,
-            });
-          }
-        });
-
-        // Transform to SubjectAttendance format
-        const attendanceData = Array.from(uniqueSubjectsMap.entries())
-          .map(([subjectId, subject]) => {
-            const stats = attendanceBySubject.get(subjectId) || { present: 0, total: 0 };
-            const percentage = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
-
-            return {
-              subjectName: subject.name,
-              totalClasses: stats.total,
-              attendedClasses: stats.present,
-              percentage,
-            };
-          })
-          .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
-
-        setAttendance(attendanceData);
+        const stats = await getStudentStats();
+        setAttendance(stats);
         setError(null);
       } catch (err) {
         console.error("Error fetching attendance data:", err);

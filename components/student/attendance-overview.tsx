@@ -4,15 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { CalendarCheck } from "lucide-react";
 
-type SubjectAttendance = {
-  subjectName: string;
-  totalClasses: number;
-  attendedClasses: number;
-  percentage: number;
-};
+import type { SubjectAttendanceStats } from "@/lib/api/attendance-stats";
 
 type AttendanceOverviewProps = {
-  attendance: SubjectAttendance[];
+  attendance: SubjectAttendanceStats[];
 };
 
 const AttendanceGauge = ({ percentage, colorClass }: { percentage: number, colorClass: string }) => {
@@ -114,9 +109,14 @@ export default function AttendanceOverview({ attendance }: AttendanceOverviewPro
                 </span>
               </div>
               <Progress value={subject.percentage} className="h-1.5" />
-              <p className="text-xs text-muted-foreground">
-                {subject.attendedClasses} / {subject.totalClasses} classes
-              </p>
+              <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                <span>{subject.attendedClasses} / {subject.totalClasses} classes</span>
+                {subject.percentage >= 75 ? (
+                  <span className="text-green-600 dark:text-green-400">Can skip {subject.classesCanSkip} {subject.classesCanSkip === 1 ? 'class' : 'classes'}</span>
+                ) : (
+                  <span className="text-red-600 dark:text-red-400">Need {subject.classesNeeded} {subject.classesNeeded === 1 ? 'class' : 'classes'} to reach 75%</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
