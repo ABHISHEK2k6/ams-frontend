@@ -70,6 +70,7 @@ npm run dev
 
 ### Environment Variables
 
+ 
 Create a `.env` file in the root directory:
 
 ```env
