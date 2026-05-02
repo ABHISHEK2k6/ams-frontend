@@ -158,11 +158,12 @@ export default function StudentSubjectReportPage() {
           record: recordsBySession.get(id) ?? null,
         }));
 
+        // Robust sorting: Newest sessions first
         reportRows.sort((a, b) => {
-          const aDate = toDate(getRowDateValue(a));
-          const bDate = toDate(getRowDateValue(b));
-          if (!aDate || !bDate) return 0;
-          return bDate.getTime() - aDate.getTime();
+          const aDate = toDate(getRowDateValue(a))?.getTime() || 0;
+          const bDate = toDate(getRowDateValue(b))?.getTime() || 0;
+          if (aDate !== bDate) return bDate - aDate;
+          return (b.session?._id || "").localeCompare(a.session?._id || "");
         });
 
         setRows(reportRows);
@@ -205,24 +206,15 @@ export default function StudentSubjectReportPage() {
 
   const sessionData = useMemo(() => {
     const rowBySessionId = new Map<string, SessionRow>();
-    rows.forEach((row) => {
-      if (row.session?._id) {
-        rowBySessionId.set(row.session._id, row);
-      }
-    });
-
-    const sessions = rows
-      .map((row) => row.session)
-      .filter((session): session is AttendanceSession => Boolean(session))
-      .sort((a, b) => {
-        const ta = toDate(a.start_time)?.getTime() ?? 0;
-        const tb = toDate(b.start_time)?.getTime() ?? 0;
-        return ta - tb;
-      });
-
     const statusBySession = new Map<string, string | undefined>();
+    
+    // We derive sessions directly from the rows to maintain the exact order set in useEffect
+    const sessions: AttendanceSession[] = [];
+    
     rows.forEach((row) => {
       if (row.session?._id) {
+        sessions.push(row.session);
+        rowBySessionId.set(row.session._id, row);
         statusBySession.set(row.session._id, row.record?.status);
       }
     });
@@ -281,8 +273,8 @@ export default function StudentSubjectReportPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left border-collapse m-0 p-0">
                 <thead className="text-muted-foreground font-medium text-xs">
-                  <tr>
-                    <th colSpan={sessionData.sessions.length + 2} className="px-4 py-3 border-none font-normal bg-muted">
+                  <tr className="bg-muted">
+                    <th colSpan={sessionData.sessions.length + 2} className="px-4 py-3 border-none font-normal">
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                         <div className="flex items-baseline gap-2">
                           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subject</span>
@@ -301,7 +293,7 @@ export default function StudentSubjectReportPage() {
                     {sessionData.sessions.map((session) => (
                       <th key={session._id} className="px-2 py-3 border-b text-center min-w-[60px] bg-muted">
                         <div className="flex flex-col items-center">
-                          <span>{format(new Date(sessionData.rowBySessionId.get(session._id)?.record?.marked_at || session.start_time), "dd/MM")}</span>
+                          <span>{format(toDate(sessionData.rowBySessionId.get(session._id)?.record?.marked_at || session.start_time)!, "dd/MM")}</span>
                         </div>
                       </th>
                     ))}
@@ -310,13 +302,13 @@ export default function StudentSubjectReportPage() {
                 </thead>
                 <tbody className="divide-y">
                   <tr className="hover:bg-muted/20">
-                    <td className="px-4 py-3 sticky left-0 z-10 bg-background group-hover:bg-muted/20 font-medium">
+                    <td className="px-4 py-3 sticky left-0 z-10 bg-background font-medium">
                       <div className="flex flex-col">
                         <span className="text-foreground">
                           {user?.name || `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || "Student"}
                         </span>
                         <span className="text-xs text-muted-foreground w-[120px] overflow-hidden text-ellipsis whitespace-nowrap block" dir="rtl" style={{ textAlign: "left" }}>
-                          {(user?.profile as { candidate_code?: string; adm_number?: string } | undefined)?.candidate_code || (user?.profile as { adm_number?: string } | undefined)?.adm_number || user?.email || user?._id}
+                          {(user?.profile as any)?.candidate_code || (user?.profile as any)?.adm_number || user?.email || user?._id}
                         </span>
                       </div>
                     </td>
@@ -390,7 +382,7 @@ export default function StudentSubjectReportPage() {
                 return (
                   <div key={row.session?._id || row.record?._id} className="flex flex-wrap items-center justify-between gap-2 border-b border-muted/30 pb-2">
                     <div className="text-muted-foreground">
-                      {startTime ? format(new Date(startTime), "MMM dd, yyyy") : "-"}
+                      {startTime ? format(toDate(startTime)!, "MMM dd, yyyy") : "-"}
                       {startTime && endTime && (
                         <span className="ml-2">
                           {formatRoundedSessionTime(row)}
