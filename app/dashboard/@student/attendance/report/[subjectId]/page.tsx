@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, CalendarDays } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
 import { listAttendanceRecords, type AttendanceRecord } from "@/lib/api/attendance-record";
 import { getAttendanceSessionById, type AttendanceSession } from "@/lib/api/attendance-session";
@@ -38,17 +38,31 @@ const isAttendedStatus = (status?: string) => status === "present" || status ===
 
 const getRowDateValue = (row: SessionRow) => row.record?.marked_at || row.session?.start_time;
 
+const toDate = (value?: string | Date | null) => {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      return parseISO(value);
+    } catch (e) {
+      return new Date(value);
+    }
+  }
+  if (value instanceof Date) return value;
+  return new Date(value as any);
+};
+
 const formatRowDate = (row: SessionRow) => {
   const dateValue = getRowDateValue(row);
   if (!dateValue) return "-";
-  return format(new Date(dateValue), "dd/MM");
+  const d = toDate(dateValue);
+  return d ? format(d, "dd/MM") : "-";
 };
 
 const formatRowDateTime = (row: SessionRow) => {
   const startValue = getRowDateValue(row);
   if (!startValue) return "-";
-  const start = new Date(startValue);
-  const end = row.session?.end_time ? new Date(row.session.end_time) : null;
+  const start = toDate(startValue)!;
+  const end = row.session?.end_time ? toDate(row.session.end_time) : null;
   const dateLabel = format(start, "dd MMM, yyyy");
   if (end) {
     return `${dateLabel} • ${format(start, "hh:mm a")} - ${format(end, "hh:mm a")}`;
@@ -75,8 +89,8 @@ const formatRoundedSessionTime = (row: SessionRow) => {
   const startValue = getRowDateValue(row);
   if (!startValue) return "-";
 
-  const sessionStart = new Date(startValue);
-  const sessionEnd = row.session?.end_time ? new Date(row.session.end_time) : null;
+  const sessionStart = toDate(startValue)!;
+  const sessionEnd = row.session?.end_time ? toDate(row.session.end_time) : null;
   const roundedStart = roundDownToHour(sessionStart);
   const roundedEnd = sessionEnd ? roundUpToHour(sessionEnd) : null;
 
@@ -145,10 +159,10 @@ export default function StudentSubjectReportPage() {
         }));
 
         reportRows.sort((a, b) => {
-          const aDate = getRowDateValue(a);
-          const bDate = getRowDateValue(b);
+          const aDate = toDate(getRowDateValue(a));
+          const bDate = toDate(getRowDateValue(b));
           if (!aDate || !bDate) return 0;
-          return new Date(bDate).getTime() - new Date(aDate).getTime();
+          return bDate.getTime() - aDate.getTime();
         });
 
         setRows(reportRows);
@@ -200,7 +214,11 @@ export default function StudentSubjectReportPage() {
     const sessions = rows
       .map((row) => row.session)
       .filter((session): session is AttendanceSession => Boolean(session))
-      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+      .sort((a, b) => {
+        const ta = toDate(a.start_time)?.getTime() ?? 0;
+        const tb = toDate(b.start_time)?.getTime() ?? 0;
+        return ta - tb;
+      });
 
     const statusBySession = new Map<string, string | undefined>();
     rows.forEach((row) => {
