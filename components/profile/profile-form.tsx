@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Alert } from "@/components/ui/alert";
 import { User } from "@/lib/types/UserTypes";
 import { UpdateUserData } from "@/lib/types/UserTypes";
 
@@ -34,7 +33,10 @@ export default function ProfileForm({
 }) {
   const [user, setUser] = useState<User | null>(initialUser ?? null);
   const [editing, setEditing] = useState<boolean>(false);
-  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const onProfileChange = (k: string, v: unknown) => {
     setUser((s) =>
@@ -50,7 +52,7 @@ export default function ProfileForm({
     e?.preventDefault();
 
     if (!user) {
-      setSavedMsg("Error: User data is missing");
+      setStatusMessage({ type: "error", text: "User data is missing." });
       return;
     }
 
@@ -75,7 +77,11 @@ export default function ProfileForm({
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to update profile");
+        setStatusMessage({
+          type: "error",
+          text: error.message || "Failed to update profile.",
+        });
+        return;
       }
 
       const result = await response.json();
@@ -86,15 +92,20 @@ export default function ProfileForm({
       }
 
       setEditing(false);
-      setSavedMsg("Profile updated successfully.");
-      setTimeout(() => setSavedMsg(null), 3000);
+      setStatusMessage({
+        type: "success",
+        text: "Profile updated successfully.",
+      });
+      setTimeout(() => setStatusMessage(null), 3000);
     } catch (error) {
       console.error(error);
-      setSavedMsg(
-        error instanceof Error
-          ? `Error: ${error.message}`
-          : "Failed to update profile.",
-      );
+      setStatusMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Failed to update profile.",
+      });
     }
   };
 
@@ -109,32 +120,38 @@ export default function ProfileForm({
 
   return (
     <form onSubmit={onSave} className="space-y-6">
-      {/* {savedMsg && (
-        <Alert
-          variant="default"
-          className="bg-emerald-50 border-emerald-200 text-emerald-900"
+      {statusMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`flex items-center gap-2 text-sm px-4 py-2 rounded-md border ${
+            statusMessage.type === "success"
+              ? "text-green-700 bg-green-50 border-green-200"
+              : "text-red-700 bg-red-50 border-red-200"
+          }`}
         >
-          {savedMsg}
-        </Alert>
-      )} */}
-
-      {/* Updated  success message*/}
-      {savedMsg && (
-        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 px-4 py-2 rounded-md">
           <svg
-            className="w-4 h-4"
+            className="w-4 h-4 shrink-0"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
             viewBox="0 0 24 24"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 13l4 4L19 7"
-            />
+            {statusMessage.type === "success" ? (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5 13l4 4L19 7"
+              />
+            ) : (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            )}
           </svg>
-          {savedMsg}
+          <span>{statusMessage.text}</span>
         </div>
       )}
 

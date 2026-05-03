@@ -7,12 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Calendar, Clock, Users, BookOpen, Hand, FileSpreadsheet, Check, X } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Users, BookOpen, Hand, FileSpreadsheet, Check, X, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { getAttendanceSessionById, type AttendanceSession, type EmbeddedAttendanceRecord } from "@/lib/api/attendance-session";
+import { toast } from "sonner";
 import { listUsers } from "@/lib/api/user";
-import { createAttendanceRecord, updateAttendanceRecordById, listAttendanceRecords } from "@/lib/api/attendance-record";
+import { createBulkAttendanceRecords, updateAttendanceRecordById, type AttendanceStatus } from "@/lib/api/attendance-record";
 import type { User } from "@/lib/types/UserTypes";
 import CsvAttendanceDialog from "@/components/teacher/csv-attendance-dialog";
 
@@ -29,9 +29,10 @@ export default function SessionAttendanceMethodsPage() {
   const [attendanceRecords, setAttendanceRecords] = useState<Map<string, EmbeddedAttendanceRecord>>(new Map());
   const [loading, setLoading] = useState(true);
   const [attendanceStatus, setAttendanceStatus] = useState<Map<string, 'present' | 'absent'>>(new Map());
-  const [savingStudentId, setSavingStudentId] = useState<string | null>(null);
-  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState<string | null>(null);
+  const [markMode, setMarkMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<Array<{ studentId: string; previous?: 'present' | 'absent' }>>([]);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
 
   const attendanceSummary = useMemo(() => {
@@ -49,6 +50,38 @@ export default function SessionAttendanceMethodsPage() {
   }, [students, attendanceStatus]);
 
 
+  const markStudent = (studentId: string, status: 'present' | 'absent') => {
+    setAttendanceStatus((prev) => {
+      const previous = prev.get(studentId);
+      setHistory((historyPrev) => [...historyPrev, { studentId, previous }]);
+      setSaveSuccess(false);
+      const next = new Map(prev);
+      next.set(studentId, status);
+      return next;
+    });
+  };
+
+  const undoLast = () => {
+    const lastAction = history[history.length - 1];
+    if (!lastAction) return;
+
+    setHistory((prev) => prev.slice(0, -1));
+    setAttendanceStatus((prev) => {
+      const next = new Map(prev);
+      if (lastAction.previous) {
+        next.set(lastAction.studentId, lastAction.previous);
+      } else {
+        next.delete(lastAction.studentId);
+      }
+      return next;
+    });
+    setSaveSuccess(false);
+  };
+
+  const beginMarking = () => {
+    setMarkMode(true);
+    setSaveSuccess(false);
+  };
 
   const refreshAttendanceList = useCallback(async () => {
     try {
@@ -64,13 +97,83 @@ export default function SessionAttendanceMethodsPage() {
         recordsMap.set(studentId, record);
         statusMap.set(studentId, record.status === 'present' ? 'present' : 'absent');
       });
-      
+
       setAttendanceRecords(recordsMap);
       setAttendanceStatus(statusMap);
     } catch (error) {
       console.error("Failed to refresh attendance:", error);
     }
   }, [sessionId]);
+
+  const submitAttendance = async () => {
+    if (!session || students.length === 0) return;
+
+    setSaving(true);
+    try {
+      const createRecords: Array<{ student: string; status: AttendanceStatus }> = [];
+      const updateRecordsList: Array<{ recordId: string; status: AttendanceStatus }> = [];
+
+      students.forEach((student) => {
+        const status = attendanceStatus.get(student._id!) ?? "absent";
+        const existingRecord = attendanceRecords.get(student._id!);
+
+        if (existingRecord) {
+          updateRecordsList.push({ recordId: existingRecord._id, status });
+        } else {
+          createRecords.push({ student: student._id!, status });
+        }
+      });
+
+      let createdCount = 0;
+      let updatedCount = 0;
+      let errorCount = 0;
+
+      if (createRecords.length > 0) {
+        try {
+          const result = await createBulkAttendanceRecords({
+            session: session._id,
+            records: createRecords,
+          });
+          createdCount = (result.created ?? []).length;
+          errorCount = (result.errors ?? []).length;
+        } catch (error) {
+          console.error("Failed to create attendance records:", error);
+          errorCount += createRecords.length;
+        }
+      }
+
+      if (updateRecordsList.length > 0) {
+        const updatePromises = updateRecordsList.map(({ recordId, status }) =>
+          updateAttendanceRecordById(recordId, { status })
+        );
+        const results = await Promise.allSettled(updatePromises);
+        results.forEach((result) => {
+          if (result.status === "fulfilled") {
+            updatedCount++;
+          } else {
+            console.error("Failed to update record:", result.reason);
+            errorCount++;
+          }
+        });
+      }
+
+      setSaveSuccess(true);
+      if (errorCount > 0) {
+        toast.error(`Saved ${createdCount + updatedCount} records (${createdCount} new, ${updatedCount} updated) with ${errorCount} errors`);
+      } else {
+        toast.success(`Attendance successfully marked!`, {
+          className: "w-fit pr-2"
+        });
+      }
+      await refreshAttendanceList();
+      setMarkMode(false);
+    } catch (error) {
+      console.error("Failed to save attendance:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save attendance. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const loadAttendanceRecords = (sessionData: AttendanceSession) => {
     const recordsMap = new Map<string, EmbeddedAttendanceRecord>();
@@ -139,58 +242,6 @@ export default function SessionAttendanceMethodsPage() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [refreshAttendanceList]);
 
-  const setAttendanceStatus_ = async (studentId: string, newStatus: 'present' | 'absent') => {
-    setSavingStudentId(studentId);
-    try {
-      const existingRecord = attendanceRecords.get(studentId);
-      
-      let updatedRecord;
-      
-      if (existingRecord) {
-        // Update existing record
-        updatedRecord = await updateAttendanceRecordById(existingRecord._id, { status: newStatus });
-      } else {
-        // Create new record
-        const student = students.find(s => s._id === studentId);
-        if (!student || !session) return;
-        
-        updatedRecord = await createAttendanceRecord({
-          session: session._id,
-          student: studentId,
-          status: newStatus,
-        });
-      }
-      
-      // Update local state on success
-      setAttendanceRecords((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(studentId, updatedRecord as any);
-        return newMap;
-      });
-      
-      setAttendanceStatus((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(studentId, newStatus);
-        return newMap;
-      });
-      
-      // Exit edit mode after marking
-      setEditingStudentId(null);
-      
-      // Do NOT refreshAttendanceList here immediately, as the backend might not have indexed it.
-      // The optimistic UI update above is sufficient.
-    } catch (error) {
-      console.error('Failed to save attendance:', error);
-      alert('Failed to save attendance. Please try again.');
-    } finally {
-      setSavingStudentId(null);
-    }
-  };
-
-  const handleEditConfirmation = (studentId: string) => {
-    setEditingStudentId(studentId);
-    setEditDialogOpen(null);
-  };
 
   if (loading) {
     return (
@@ -240,6 +291,8 @@ export default function SessionAttendanceMethodsPage() {
           <p className="text-muted-foreground">Select how you want to mark attendance for this session</p>
         </div>
       </div>
+
+      {/* toasts are shown via Sonner Toaster mounted in dashboard layout */}
 
       <Card>
         <CardHeader>
@@ -344,6 +397,26 @@ export default function SessionAttendanceMethodsPage() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-5 rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold">Marking mode</p>
+                <p className="text-sm text-muted-foreground">
+                  {markMode ? "Tick students below, then submit once." : "Enable marking to show tick and cross buttons."}
+                </p>
+              </div>
+              {!markMode ? (
+                <Button onClick={beginMarking} disabled={students.length === 0} className="sm:min-w-40">
+                  Mark Attendance
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => setMarkMode(false)} disabled={saving} className="sm:min-w-40">
+                  Marking Enabled
+                </Button>
+              )}
+            </div>
+          </div>
+
           {loading ? (
             <div className="space-y-3">
               <Skeleton className="h-12 w-full" />
@@ -358,13 +431,11 @@ export default function SessionAttendanceMethodsPage() {
                 const studentId = student._id;
                 const status = attendanceStatus.get(studentId!) || 'default';
                 const isPresent = status === 'present';
-                const hasRecord = attendanceRecords.has(studentId!);
-                const isEditing = editingStudentId === studentId;
-                
+
                 const p = (student.profile as any) ?? {};
                 const candidateCode = p.candidate_code?.trim() ?? '';
                 const lastThreeDigits = candidateCode.slice(-3).replace(/^0+/, '') || 'N/A';
-                
+
                 return (
                   <div
                     key={studentId}
@@ -372,113 +443,60 @@ export default function SessionAttendanceMethodsPage() {
                   >
                     <div className="flex items-center gap-3 flex-1">
                       <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center border shrink-0 font-semibold transition-colors ${
-                          status === 'present'
+                        className={`w-8 h-8 rounded-full flex items-center justify-center border shrink-0 font-semibold transition-colors ${status === 'present'
                             ? 'bg-green-100 dark:bg-green-900/30 border-green-500 text-green-700'
                             : status === 'absent'
-                            ? 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-700'
-                            : 'bg-primary/10 border-primary text-primary'
-                        }`}
+                              ? 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-700'
+                              : 'bg-primary/10 border-primary text-primary'
+                          }`}
                       >
                         <span className="text-xs">{lastThreeDigits}</span>
                       </div>
                       <p className="font-medium text-sm">{student.name}</p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {hasRecord && !isEditing ? (
+                    {markMode && (
+                      <div className="flex items-center gap-2 shrink-0">
                         <Button
-                          variant="outline"
+                          type="button"
                           size="sm"
-                          onClick={() => setEditDialogOpen(studentId!)}
-                          disabled={savingStudentId === studentId}
-                          className={`gap-1 font-medium ${
-                            isPresent
-                              ? 'bg-green-500 hover:bg-green-600 text-white border-green-600'
-                              : 'bg-red-500 hover:bg-red-600 text-white border-red-600'
-                          }`}
+                          variant={isPresent ? "default" : "outline"}
+                          onClick={() => markStudent(studentId!, 'present')}
+                          className="h-10 w-10 p-0"
+                          title="Mark Present"
                         >
-                          {savingStudentId === studentId ? (
-                            <span className="animate-spin inline-block">⟳</span>
-                          ) : (
-                            isPresent ? 'Present' : 'Absent'
-                          )}
+                          <Check className="h-4 w-4" />
                         </Button>
-                      ) : (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setAttendanceStatus_(studentId!, 'present')}
-                            disabled={savingStudentId === studentId}
-                            className={`gap-1 ${
-                              isPresent
-                                ? 'bg-green-500 hover:bg-green-600 text-white'
-                                : 'bg-green-100 hover:bg-green-200 text-green-700'
-                            }`}
-                            title="Mark Present"
-                          >
-                            {savingStudentId === studentId ? (
-                              <span className="animate-spin inline-block">⟳</span>
-                            ) : (
-                              <Check className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setAttendanceStatus_(studentId!, 'absent')}
-                            disabled={savingStudentId === studentId}
-                            className={`gap-1 ${
-                              !isPresent
-                                ? 'bg-red-500 hover:bg-red-600 text-white'
-                                : 'bg-red-100 hover:bg-red-200 text-red-700'
-                            }`}
-                            title="Mark Absent"
-                          >
-                            {savingStudentId === studentId ? (
-                              <span className="animate-spin inline-block">⟳</span>
-                            ) : (
-                              <X className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={!isPresent && attendanceStatus.get(studentId!) === 'absent' ? "destructive" : "outline"}
+                          onClick={() => markStudent(studentId!, 'absent')}
+                          className="h-10 w-10 p-0"
+                          title="Mark Absent"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           )}
+
+          {markMode && (
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={undoLast} disabled={history.length === 0 || saving}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Undo Last
+              </Button>
+              <Button onClick={submitAttendance} disabled={saving || students.length === 0}>
+                {saving ? "Saving..." : "Submit Attendance"}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      <Dialog open={!!editDialogOpen} onOpenChange={(open) => !open && setEditDialogOpen(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Attendance</DialogTitle>
-            <DialogDescription>
-              Do you want to edit this student's attendance?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setEditDialogOpen(null)}
-            >
-              No
-            </Button>
-            <Button
-              onClick={() => {
-                if (editDialogOpen) {
-                  handleEditConfirmation(editDialogOpen);
-                }
-              }}
-            >
-              Yes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {session && (
         <CsvAttendanceDialog
