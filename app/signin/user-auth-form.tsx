@@ -35,12 +35,13 @@ export function SignInUserAuthForm({ className, redirectUrl }: {className?: stri
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
+    setError(null)
+    try {
       const { error } = await authClient.signIn.email({
         email: values.email,
         password: values.password,
         callbackURL: window.location.origin + (redirectUrl || "/dashboard"),
       })
-    try {
       if (error) {
         setError(error.message || "An error occurred during sign in")
       } else {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +12,8 @@ import { ArrowLeft, Calendar, Clock, Users, BookOpen, Hand, FileSpreadsheet, Che
 import { format } from "date-fns";
 import { getAttendanceSessionById, type AttendanceSession, type EmbeddedAttendanceRecord } from "@/lib/api/attendance-session";
 import { listUsers } from "@/lib/api/user";
-import { createAttendanceRecord, updateAttendanceRecordById } from "@/lib/api/attendance-record";
+import { createAttendanceRecord, updateAttendanceRecordById, listAttendanceRecords } from "@/lib/api/attendance-record";
 import type { User } from "@/lib/types/UserTypes";
-import { getTeacherStudents } from "@/lib/dummy-data";
 import CsvAttendanceDialog from "@/components/teacher/csv-attendance-dialog";
 
 export const dynamic = "force-dynamic";
@@ -49,43 +48,39 @@ export default function SessionAttendanceMethodsPage() {
     return { present, absent, unmarked };
   }, [students, attendanceStatus]);
 
-  const getDummyStatusMap = (studentIds?: Set<string>) => {
-    const statusMap = new Map<string, 'present' | 'absent'>();
-    getTeacherStudents().forEach((student) => {
-      if (!studentIds || studentIds.has(student.id)) {
-        statusMap.set(student.id, student.currentAttendance >= 75 ? 'present' : 'absent');
-      }
-    });
-    return statusMap;
-  };
 
-  const refreshAttendanceList = async () => {
+
+  const refreshAttendanceList = useCallback(async () => {
     try {
       const sessionData = await getAttendanceSessionById(sessionId);
       setSession(sessionData);
       const recordsMap = new Map<string, EmbeddedAttendanceRecord>();
       const statusMap = new Map<string, 'present' | 'absent'>();
       
-      (sessionData.records ?? []).forEach((record) => {
-        recordsMap.set(record.student._id, record);
-        statusMap.set(record.student._id, record.status === 'present' ? 'present' : 'absent');
+      (sessionData.records ?? []).forEach((record: any) => {
+        const studentId = typeof record.student === 'string'
+          ? record.student
+          : record.student._id;
+        recordsMap.set(studentId, record);
+        statusMap.set(studentId, record.status === 'present' ? 'present' : 'absent');
       });
       
       setAttendanceRecords(recordsMap);
       setAttendanceStatus(statusMap);
     } catch (error) {
       console.error("Failed to refresh attendance:", error);
-      const currentStudentIds = new Set(students.map((student) => student._id!));
-      setAttendanceStatus(getDummyStatusMap(currentStudentIds));
     }
-  };
+  }, [sessionId]);
 
   const loadAttendanceRecords = (sessionData: AttendanceSession) => {
     const recordsMap = new Map<string, EmbeddedAttendanceRecord>();
     const statusMap = new Map<string, 'present' | 'absent'>();
-    (sessionData.records ?? []).forEach((record) => {
-      recordsMap.set(record.student._id, record);
-      statusMap.set(record.student._id, record.status === 'present' ? 'present' : 'absent');
+    (sessionData.records ?? []).forEach((record: any) => {
+      const studentId = typeof record.student === 'string'
+        ? record.student
+        : record.student._id;
+      recordsMap.set(studentId, record);
+      statusMap.set(studentId, record.status === 'present' ? 'present' : 'absent');
     });
     setAttendanceRecords(recordsMap);
     setAttendanceStatus(statusMap);
@@ -95,12 +90,12 @@ export default function SessionAttendanceMethodsPage() {
     const loadData = async () => {
       setLoading(true);
       try {
-        // Fetch session
         const sessionData = await getAttendanceSessionById(sessionId);
         setSession(sessionData);
-        const sessionBatchId = typeof sessionData.batch === 'string' ? sessionData.batch : sessionData.batch?._id;
+        const sessionBatchId = typeof sessionData.batch === 'string' 
+          ? sessionData.batch 
+          : sessionData.batch?._id;
 
-        // Fetch students in batch
         let batchStudents: User[] = [];
         let page = 1;
         let totalPages = 1;
@@ -111,51 +106,37 @@ export default function SessionAttendanceMethodsPage() {
           page++;
         } while (page <= totalPages);
 
-        // Sort students in ascending order by name
-        batchStudents.sort((a, b) => {
-          const nameA = (a.name || '').toLowerCase();
-          const nameB = (b.name || '').toLowerCase();
-          return nameA.localeCompare(nameB);
-        });
-
+        batchStudents.sort((a, b) => (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase()));
         setStudents(batchStudents);
 
-        // Records are embedded in the session — extract directly
-        const records = sessionData.records ?? [];
-        if (records.length > 0) {
-          loadAttendanceRecords(sessionData);
-        } else {
-          setAttendanceStatus(getDummyStatusMap(new Set(batchStudents.map((s) => s._id!))));
-        }
+        const recordsMap = new Map<string, EmbeddedAttendanceRecord>();
+        const statusMap = new Map<string, 'present' | 'absent'>();
+        (sessionData.records ?? []).forEach((record: any) => {
+          const studentId = typeof record.student === 'string'
+            ? record.student
+            : record.student._id;
+          recordsMap.set(studentId, record);
+          statusMap.set(studentId, record.status === 'present' ? 'present' : 'absent');
+        });
+        setAttendanceRecords(recordsMap);
+        setAttendanceStatus(statusMap);
       } catch (error) {
         console.error("Failed to load data:", error);
-        setStudents([]);
-        setAttendanceStatus(new Map());
       } finally {
         setLoading(false);
       }
     };
 
-    if (sessionId) {
-      loadData();
-    }
+    loadData();
   }, [sessionId]);
 
-  // Auto-refresh when window regains focus (debounced to avoid excessive requests)
+  // Auto-refresh when window regains focus
   useEffect(() => {
-    let debounceTimeout: NodeJS.Timeout;
     const handleFocus = () => {
-      clearTimeout(debounceTimeout);
-      debounceTimeout = setTimeout(() => {
-        refreshAttendanceList();
-      }, 500);
+      refreshAttendanceList();
     };
-
     window.addEventListener('focus', handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      clearTimeout(debounceTimeout);
-    };
+    return () => window.removeEventListener('focus', handleFocus);
   }, [refreshAttendanceList]);
 
   const setAttendanceStatus_ = async (studentId: string, newStatus: 'present' | 'absent') => {
@@ -163,15 +144,17 @@ export default function SessionAttendanceMethodsPage() {
     try {
       const existingRecord = attendanceRecords.get(studentId);
       
+      let updatedRecord;
+      
       if (existingRecord) {
         // Update existing record
-        await updateAttendanceRecordById(existingRecord._id, { status: newStatus });
+        updatedRecord = await updateAttendanceRecordById(existingRecord._id, { status: newStatus });
       } else {
         // Create new record
         const student = students.find(s => s._id === studentId);
         if (!student || !session) return;
         
-        await createAttendanceRecord({
+        updatedRecord = await createAttendanceRecord({
           session: session._id,
           student: studentId,
           status: newStatus,
@@ -179,6 +162,12 @@ export default function SessionAttendanceMethodsPage() {
       }
       
       // Update local state on success
+      setAttendanceRecords((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(studentId, updatedRecord as any);
+        return newMap;
+      });
+      
       setAttendanceStatus((prev) => {
         const newMap = new Map(prev);
         newMap.set(studentId, newStatus);
@@ -188,8 +177,8 @@ export default function SessionAttendanceMethodsPage() {
       // Exit edit mode after marking
       setEditingStudentId(null);
       
-      // Reload session to get updated embedded records
-      refreshAttendanceList();
+      // Do NOT refreshAttendanceList here immediately, as the backend might not have indexed it.
+      // The optimistic UI update above is sufficient.
     } catch (error) {
       console.error('Failed to save attendance:', error);
       alert('Failed to save attendance. Please try again.');
