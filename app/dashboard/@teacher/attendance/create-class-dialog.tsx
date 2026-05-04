@@ -72,6 +72,7 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
     if (selectedBatch) {
       const filtered = allSubjects.filter((s) => {
         if (s.scheme !== selectedBatch.scheme) return false;
+        if (s.sem !== selectedBatch.sem) return false;
         if (isGeneralDept) return s.department === "GEN";
         return s.department === selectedBatch.department;
       });
