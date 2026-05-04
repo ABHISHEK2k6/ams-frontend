@@ -253,7 +253,7 @@ export default function UsersPage() {
                         <div key={year} className="space-y-1">
                           <Button variant="ghost" className="w-full justify-start font-medium text-muted-foreground" onClick={() => toggleYear(year)}>
                             {isExpanded ? <ChevronDown className="mr-1.5 h-4 w-4" /> : <ChevronRight className="mr-1.5 h-4 w-4" />}
-                            <Folder className="mr-2 h-4 w-4 text-blue-500/80" /> {year} Batch
+                            <Folder className="mr-2 h-4 w-4" /> {year} Batch
                           </Button>
                           {isExpanded && (
                             <div className="ml-4 pl-3 border-l border-border/50 flex flex-col gap-1 my-1">
