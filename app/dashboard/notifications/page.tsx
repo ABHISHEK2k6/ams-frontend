@@ -22,6 +22,7 @@ import {
   type NotificationRecord
 } from "@/lib/api/notification";
 import { useAuth } from "@/lib/auth-context";
+import { FLAGS } from "@/lib/flags";
 
 type UiNotification = {
   id: string;
@@ -162,7 +163,7 @@ const getPriorityRank = (priorityLevel: string) => {
 
 export default function NotificationsPage() {
   const { user, config } = useAuth();
-  const notificationsEnabled = Boolean(config["feature/notifications"]);
+  const notificationsEnabled = Boolean(config[FLAGS.NOTIFICATIONS]);
   const [notifications, setNotifications] = useState<UiNotification[]>([]);
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);

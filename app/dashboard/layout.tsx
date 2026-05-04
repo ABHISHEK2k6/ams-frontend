@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { useRouter, usePathname } from 'next/navigation';
 import { Avatar as AvatarIcon, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
+import { FLAGS } from "@/lib/flags";
 import Loading from "@/app/loading";
 import Avatar, { genConfig } from 'react-nice-avatar';
 
@@ -33,7 +34,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, isLoading, session, incompleteProfile, config } = useAuth();
   const isSharedRoute = SHARED_ROUTES.some((r) => pathname.startsWith(r));
-  const notificationsEnabled = Boolean(config["feature/notifications"]);
+  const notificationsEnabled = Boolean(config[FLAGS.NOTIFICATIONS]);
 
   const profileImageConfig: ReturnType<typeof genConfig> = useMemo(() => {
     const gender = user?.gender?.toLowerCase();

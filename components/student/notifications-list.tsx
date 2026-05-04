@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Bell, AlertCircle, Info, CheckCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
+import { FLAGS } from "@/lib/flags";
 
 type Notification = {
   id: string;
@@ -28,7 +29,7 @@ export default function NotificationsList({ notifications, hasUnread, onMarkAllR
   const { config } = useAuth();
   const canMarkAllRead = Boolean(onMarkAllRead) && Boolean(hasUnread);
 
-  if (!config["feature/notifications"]) return null;
+  if (!config[FLAGS.NOTIFICATIONS]) return null;
 
   const getNotificationIcon = (type: Notification["type"]) => {
     switch (type) {
