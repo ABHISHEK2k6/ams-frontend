@@ -16,6 +16,12 @@
 export const FLAGS = {
   /** Controls all notification-related UI surfaces. */
   NOTIFICATIONS: "feature/notifications",
+
+  // ── Auth ────────────────────────────────────────────────────────────────────
+
+  GOOGLE_SIGNIN: "auth/google-signin",   // Show/hide the Google sign-in button
+  EMAIL_SIGNIN: "auth/email-signin",     // Show/hide the email + password form
+  SIGNUP: "auth/signup",                 // Allow students to self-onboard without a pre-assigned batch
 } as const;
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS];
