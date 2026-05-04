@@ -43,7 +43,7 @@ export default function AuthenticationPage() {
                 </div>
               </div> : <>
                 <div className="flex flex-col gap-2 text-center">
-                  <Image src="/logo-ucek.svg" alt="Logo" width={56} height={56} className="mr-2 w-auto h-14 brightness-0 invert" />
+                  <Image src="/logo-ucek.svg" alt="Logo" width={56} height={56} className="mr-2 w-auto h-14 brightness-0 dark:invert" />
                   <p className="text-muted-foreground text-sm">
                     Sign in with your account to continue.
                   </p>
