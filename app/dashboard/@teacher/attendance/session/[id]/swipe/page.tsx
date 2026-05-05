@@ -79,7 +79,8 @@ function SwipeCard({
   const gradient = getGradient(student.name);
   const accent   = getAccent(student.name);
  
-  const initials = `${student.first_name?.charAt(0) ?? ""}${student.last_name?.charAt(0) ?? ""}`.toUpperCase();
+  const candidateCode = (student.profile as any)?.candidate_code || (student.profile as any)?.adm_number || "";
+  const lastThreeDigits = candidateCode.slice(-3) || `${student.first_name?.charAt(0) ?? ""}${student.last_name?.charAt(0) ?? ""}`.toUpperCase();
  
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!isTop) return;
@@ -160,22 +161,7 @@ function SwipeCard({
               borderRadius: 28,
               backdropFilter: "blur(8px)",
             }}
-          >
-            <div
-              className="mt-6 px-4 py-2 rounded-xl"
-              style={{
-                border: "2px solid rgba(255,255,255,0.9)",
-                transform: "rotate(-8deg)",
-                color: "white",
-                fontWeight: 900,
-                fontSize: 20,
-                letterSpacing: "0.12em",
-                textShadow: "0 2px 8px rgba(0,0,0,0.3)",
-              }}
-            >
-              PRESENT ✓
-            </div>
-          </motion.div>
+          />
         )}
  
         {/* RED absent overlay — only on top card */}
@@ -188,22 +174,7 @@ function SwipeCard({
               borderRadius: 28,
               backdropFilter: "blur(8px)",
             }}
-          >
-            <div
-              className="mt-6 px-4 py-2 rounded-xl"
-              style={{
-                border: "2px solid rgba(255,255,255,0.9)",
-                transform: "rotate(8deg)",
-                color: "white",
-                fontWeight: 900,
-                fontSize: 20,
-                letterSpacing: "0.12em",
-                textShadow: "0 2px 8px rgba(0,0,0,0.3)",
-              }}
-            >
-              ABSENT ✗
-            </div>
-          </motion.div>
+          />
         )}
  
         {/* Card content */}
@@ -237,7 +208,7 @@ function SwipeCard({
                   textShadow: `0 0 32px ${accent}88`,
                 }}
               >
-                {initials}
+                {lastThreeDigits}
               </div>
             </div>
           </div>
@@ -562,7 +533,7 @@ function SwipeAttendanceContent() {
                         style={{ background: getGradient(student.name), borderRadius: 28 }}
                       >
                         <span style={{ fontSize: 36, fontWeight: 700, color: getAccent(student.name), opacity: 0.6 }}>
-                          {`${student.first_name?.charAt(0) ?? ""}${student.last_name?.charAt(0) ?? ""}`.toUpperCase()}
+                          {((student.profile as any)?.candidate_code || (student.profile as any)?.adm_number || "").slice(-3) || `${student.first_name?.charAt(0) ?? ""}${student.last_name?.charAt(0) ?? ""}`.toUpperCase()}
                         </span>
                       </div>
                     </motion.div>

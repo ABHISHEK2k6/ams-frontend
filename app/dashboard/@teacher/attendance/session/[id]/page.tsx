@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, Clock, Users, BookOpen, Hand, FileSpreadsheet, Check, X, RotateCcw } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Users, BookOpen, Hand, FileSpreadsheet, Check, X, RotateCcw, Share2 } from "lucide-react";
 import { format } from "date-fns";
 import { getAttendanceSessionById, type AttendanceSession, type EmbeddedAttendanceRecord } from "@/lib/api/attendance-session";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import { listUsers } from "@/lib/api/user";
 import { createBulkAttendanceRecords, updateAttendanceRecordById, type AttendanceStatus } from "@/lib/api/attendance-record";
 import type { User } from "@/lib/types/UserTypes";
 import CsvAttendanceDialog from "@/components/teacher/csv-attendance-dialog";
+import { ShareAttendanceDialog } from "../../share-attendance-dialog";
 
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
@@ -34,6 +35,7 @@ export default function SessionAttendanceMethodsPage() {
   const [history, setHistory] = useState<Array<{ studentId: string; previous?: 'present' | 'absent' }>>([]);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   const attendanceSummary = useMemo(() => {
     let present = 0;
@@ -282,14 +284,22 @@ export default function SessionAttendanceMethodsPage() {
 
   return (
     <div className="min-h-screen p-4 pb-24 sm:pb-20 md:p-8 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard/attendance")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Choose Attendance Method</h1>
-          <p className="text-muted-foreground">Select how you want to mark attendance for this session</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard/attendance")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold">Choose Attendance Method</h1>
+            <p className="text-muted-foreground">Select how you want to mark attendance for this session</p>
+          </div>
         </div>
+        <Button variant="outline" size="sm" onClick={() => setShareDialogOpen(true)} className="shrink-0 hidden md:flex">
+          <Share2 className="mr-2 h-4 w-4" /> Share
+        </Button>
+        <Button variant="outline" size="icon" onClick={() => setShareDialogOpen(true)} className="shrink-0 md:hidden">
+          <Share2 className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* toasts are shown via Sonner Toaster mounted in dashboard layout */}
@@ -508,6 +518,11 @@ export default function SessionAttendanceMethodsPage() {
           onSuccess={refreshAttendanceList}
         />
       )}
+
+      <ShareAttendanceDialog 
+        session={shareDialogOpen ? session : null} 
+        onClose={() => setShareDialogOpen(false)} 
+      />
     </div>
   );
 }

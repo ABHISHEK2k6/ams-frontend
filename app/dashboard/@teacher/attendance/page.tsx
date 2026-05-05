@@ -15,12 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calendar, Clock, Users, Trash2, Filter, ChevronDown } from "lucide-react";
+import { Calendar, Clock, Users, Trash2, Filter, ChevronDown, Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
 import { listAttendanceSessions, deleteAttendanceSessionById, getRecentUniqueSessions, type AttendanceSession } from "@/lib/api/attendance-session";
 import CreateClassDialog from "./create-class-dialog";
+import { toast } from "sonner";
+import { ShareAttendanceDialog } from "./share-attendance-dialog";
 
 type ClassFilterItem = {
   batch: {
@@ -40,6 +42,7 @@ export default function AttendancePage() {
   const [uniqueClasses, setUniqueClasses] = useState<ClassFilterItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogSession, setDeleteDialogSession] = useState<AttendanceSession | null>(null);
+  const [shareDialogSession, setShareDialogSession] = useState<AttendanceSession | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [semesterByGroupKey, setSemesterByGroupKey] = useState<Record<string, string>>({});
@@ -336,7 +339,7 @@ export default function AttendancePage() {
       setDeleteDialogSession(null);
     } catch (error) {
       console.error("Failed to delete session:", error);
-      alert(error instanceof Error ? error.message : "Failed to delete session");
+      toast.error(error instanceof Error ? error.message : "Failed to delete session");
     }
   };
 
@@ -528,6 +531,17 @@ export default function AttendancePage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
+                                    title="Share"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShareDialogSession(session);
+                                    }}
+                                  >
+                                    <Share2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
                                     title="Delete"
                                     className="text-destructive hover:text-destructive"
                                     onClick={(e) => {
@@ -581,6 +595,12 @@ export default function AttendancePage() {
           </Card>
         </div>
       )}
+
+      {/* Share Configuration Dialog */}
+      <ShareAttendanceDialog 
+        session={shareDialogSession} 
+        onClose={() => setShareDialogSession(null)} 
+      />
 
       {/* Quick Info */}
       <div className="pb-15">
