@@ -22,9 +22,9 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [allSubjects, setAllSubjects] = useState<Subject[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [batchId, setBatchId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [duration, setDuration] = useState<number>(1);
@@ -50,14 +50,9 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
   const loadData = async () => {
     setLoadingData(true);
     try {
-      const filterDept = isValidDept ? teacherDept : undefined;
-      const [batchesData, subjectsData] = await Promise.all([
-        listBatches({ limit: 100, department: filterDept }),
-        listSubjects({ limit: 100, department: filterDept }),
-      ]);
+      const filterDept = (isValidDept && !isGeneralDept) ? teacherDept : undefined;
+      const batchesData = await listBatches({ limit: 100, department: filterDept });
       setBatches(batchesData.batches);
-      setAllSubjects(subjectsData.subjects);
-      setSubjects(subjectsData.subjects);
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -69,21 +64,35 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
   const selectedSubject = subjects.find((s) => s._id === subjectId);
 
   useEffect(() => {
-    if (selectedBatch) {
-      const filtered = allSubjects.filter((s) => {
-        if (s.scheme !== selectedBatch.scheme) return false;
-        if (s.sem !== selectedBatch.sem) return false;
-        if (isGeneralDept) return s.department === "GEN";
-        return s.department === selectedBatch.department;
-      });
-      setSubjects(filtered);
-      if (subjectId && !filtered.some((s) => s._id === subjectId)) {
-        setSubjectId("");
-      }
-    } else {
-      setSubjects(allSubjects);
+    setSubjectId("");
+    if (!batchId) {
+      setSubjects([]);
+      return;
     }
-  }, [batchId, selectedBatch, allSubjects, subjectId, isGeneralDept]);
+
+    const loadSubjectsForBatch = async () => {
+      setLoadingSubjects(true);
+      try {
+        const selectedBatch = batches.find((b) => b._id === batchId);
+        if (selectedBatch) {
+          const dept = isGeneralDept ? "GEN" : selectedBatch.department;
+          const subjectsData = await listSubjects({
+            limit: 100,
+            department: dept,
+            sem: selectedBatch.sem,
+            scheme: selectedBatch.scheme,
+          });
+          setSubjects(subjectsData.subjects);
+        }
+      } catch (error) {
+        console.error("Failed to load subjects:", error);
+      } finally {
+        setLoadingSubjects(false);
+      }
+    };
+
+    loadSubjectsForBatch();
+  }, [batchId, batches, isGeneralDept]);
 
   const getStartTimePreview = () => {
     let t = setHours(new Date(), startHour);
@@ -196,9 +205,14 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
             <div className="space-y-2">
               <Label>Subject</Label>
               
-              <Select value={subjectId} onValueChange={setSubjectId} disabled={loadingData}>
+              <Select value={subjectId} onValueChange={setSubjectId} disabled={loadingData || loadingSubjects || !batchId}>
                 <SelectTrigger className="min-w-0 max-w-full">
-                  <SelectValue className="truncate block" placeholder={loadingData ? "Loading..." : "Select subject"} />
+                  <SelectValue className="truncate block" placeholder={
+                    loadingData ? "Loading..." :
+                    !batchId ? "Select batch first" :
+                    loadingSubjects ? "Loading subjects..." :
+                    "Select subject"
+                  } />
                 </SelectTrigger>
                 <SelectContent className="w-full max-w-[95vw]" >
                   <div className="pb-2">
