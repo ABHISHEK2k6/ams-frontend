@@ -305,8 +305,8 @@ export default function NotificationsPage() {
     setIsSubmitting(true);
     try {
       await createNotification({
-        targetGroup: "batch",
-        targetID: formState.targetID.trim(),
+        targetGroup: formState.targetGroup,
+        targetID: formState.targetID.trim() || undefined,
         targetUsers,
         title: formState.title.trim(),
         message: formState.message.trim(),
@@ -315,12 +315,15 @@ export default function NotificationsPage() {
       });
 
       setSuccessMessage("Notification created successfully.");
-      setFormState((prev) => ({
-        ...prev,
+      setFormState({
+        targetGroup: "batch",
         targetID: "",
+        targetUsers: ["student"],
         title: "",
-        message: ""
-      }));
+        message: "",
+        priorityLevel: "medium",
+        notificationType: "general"
+      });
       await fetchNotifications();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Failed to create notification");
