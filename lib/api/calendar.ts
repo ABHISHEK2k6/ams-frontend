@@ -25,16 +25,18 @@ export interface CalendarMonthResponse {
 interface CalendarSessionBase {
   sessionId: string;
   subject: string;
-  batch: string;
   start_time: string;
   end_time: string;
 }
 
 export interface StudentCalendarSession extends CalendarSessionBase {
+  // Batch is always the student's own batch, so the teacher is shown instead.
+  teacher: string;
   status: "present" | "absent" | "late" | "excused";
 }
 
 export interface StaffCalendarSession extends CalendarSessionBase {
+  batch: string;
   teacher?: string;
   studentsPresent: number;
   totalStudents: number;

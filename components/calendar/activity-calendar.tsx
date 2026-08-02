@@ -72,7 +72,7 @@ export default function ActivityCalendar({
       )}
     >
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b-2 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b-2 bg-linear-to-r from-primary/10 via-primary/5 to-transparent p-2">
         <div className="flex items-center gap-1.5">
           <Button variant="outline" size="sm" onClick={() => onMonthChange(new Date())}>
             Today
@@ -149,7 +149,7 @@ export default function ActivityCalendar({
                       )}
                     >
                       {isStudent
-                        ? STATUS_LABEL[marker.status ?? "absent"]
+                        ? `${STATUS_LABEL[marker.status ?? "absent"]} (${marker.count})`
                         : `${marker.count} class${marker.count === 1 ? "" : "es"}`}
                     </span>
                   )}

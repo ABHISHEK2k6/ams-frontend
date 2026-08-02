@@ -58,10 +58,10 @@ export default function DayDetailDialog({ open, onOpenChange, date, loading, det
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Subject</TableHead>
-                <TableHead>Batch</TableHead>
-                {!isStudent && "teacher" in detail.sessions[0] && <TableHead>Teacher</TableHead>}
                 <TableHead>Time</TableHead>
+                <TableHead>Subject</TableHead>
+                <TableHead>{isStudent ? "Teacher" : "Batch"}</TableHead>
+                {!isStudent && "teacher" in detail.sessions[0] && <TableHead>Teacher</TableHead>}
                 <TableHead className="text-right">{isStudent ? "Status" : "Attendance"}</TableHead>
               </TableRow>
             </TableHeader>
@@ -76,10 +76,10 @@ export default function DayDetailDialog({ open, onOpenChange, date, loading, det
                   const s = session as StudentCalendarSession;
                   return (
                     <TableRow key={s.sessionId}>
-                      <TableCell>{s.subject}</TableCell>
-                      <TableCell className="text-muted-foreground">{s.batch}</TableCell>
                       <TableCell className="text-muted-foreground">{time}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell>{s.subject}</TableCell>
+                      <TableCell className="text-muted-foreground">{s.teacher}</TableCell>
+                      <TableCell className="text-right capitalize">
                         <Badge variant={STATUS_VARIANT[s.status]}>{s.status}</Badge>
                       </TableCell>
                     </TableRow>
@@ -89,10 +89,10 @@ export default function DayDetailDialog({ open, onOpenChange, date, loading, det
                 const s = session as StaffCalendarSession;
                 return (
                   <TableRow key={s.sessionId}>
+                    <TableCell className="text-muted-foreground">{time}</TableCell>
                     <TableCell>{s.subject}</TableCell>
                     <TableCell className="text-muted-foreground">{s.batch}</TableCell>
                     {"teacher" in s && <TableCell className="text-muted-foreground">{s.teacher}</TableCell>}
-                    <TableCell className="text-muted-foreground">{time}</TableCell>
                     <TableCell className="text-right">
                       {s.studentsPresent}/{s.totalStudents}
                     </TableCell>

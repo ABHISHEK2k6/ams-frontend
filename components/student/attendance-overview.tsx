@@ -113,7 +113,15 @@ export default function AttendanceOverview({ attendance, warningText }: Attendan
               <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                 <span>{subject.attendedClasses} / {subject.totalClasses} classes</span>
                 {subject.percentage >= 75 ? (
-                  <span className="text-green-600 dark:text-green-400">Can skip {subject.classesCanSkip} {subject.classesCanSkip === 1 ? 'class' : 'classes'}</span>
+                  subject.classesCanSkip > 0 ? (
+                    <span className="text-green-600 dark:text-green-400">
+                      Do not skip more than   {subject.classesCanSkip} {subject.classesCanSkip === 1 ? 'class' : 'classes'}
+                    </span>
+                  ) : (
+                    <span className="text-green-600 dark:text-green-400">
+                      Don&apos;t skip any classes.
+                    </span>
+                  )
                 ) : (
                   <span className="text-red-600 dark:text-red-400">Need {subject.classesNeeded} {subject.classesNeeded === 1 ? 'class' : 'classes'} to reach 75%</span>
                 )}

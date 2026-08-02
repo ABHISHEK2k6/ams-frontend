@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { StaffAdvisorCombobox } from "./staff-advisor-combobox";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -453,31 +454,14 @@ export function BatchDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Staff Advisor *</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                          disabled={loadingTeachers}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={loadingTeachers ? "Loading…" : "Select advisor"}
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {teacherList.map((t) => (
-                              <SelectItem key={t._id} value={t._id}>
-                                {t.name}
-                                {t.role && (
-                                  <span className="ml-1 text-xs text-muted-foreground capitalize">
-                                    · {t.role}
-                                  </span>
-                                )}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <StaffAdvisorCombobox
+                            teachers={teacherList}
+                            value={field.value}
+                            onChange={field.onChange}
+                            loading={loadingTeachers}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
