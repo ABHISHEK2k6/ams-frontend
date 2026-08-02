@@ -95,9 +95,9 @@ export function AdvanceSemesterDialog({ batches, open, onOpenChange, onSuccess }
           <DialogDescription>
             {batches.length} batch{batches.length === 1 ? "" : "es"} selected.{" "}
             {atMaxSem
-              ? "These batches are already at the final semester — advance them to alumni, or manually set a different semester."
+              ? "Advance these batches to alumni, or manually set a different semester."
               : uniformSem === null &&
-                "These batches are on different semesters, so only advancing by 1 is available."}
+                "Advance these batches to the next semester."}
           </DialogDescription>
         </DialogHeader>
 
@@ -156,9 +156,7 @@ export function AdvanceSemesterDialog({ batches, open, onOpenChange, onSuccess }
 
           {mode === "alumni" && (
             <p className="text-sm text-muted-foreground">
-              This sets their semester to Alumni. It&apos;s a one-way change — for now it only updates the
-              semester value; automated account/attendance cleanup is a planned future step (see{" "}
-              <span className="font-mono text-xs">docs/future-scope.md</span>).
+              This converts students of these batches to Alumni. <b>It&apos;s a one-way change.</b>
             </p>
           )}
 

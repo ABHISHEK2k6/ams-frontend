@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Batch, updateBatchById, isKnownPopulateResponseIssue, getUnknownErrorMessage } from "@/lib/api/batch";
+import { Batch, updateBatchById, isKnownPopulateResponseIssue, getUnknownErrorMessage, isAlumniSem } from "@/lib/api/batch";
 import { listUsers } from "@/lib/api/user";
 import type { User } from "@/lib/types/UserTypes";
 import {
@@ -565,18 +565,20 @@ export function BatchDialog({
                   )}
                 </div>
 
-                {/* Edit button */}
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setIsEditing(true);
-                    fetchTeachers();
-                  }}
-                >
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Batch
-                </Button>
+                {/* Edit button — alumni batches are view-only */}
+                {!isAlumniSem(batch.sem) && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setIsEditing(true);
+                      fetchTeachers();
+                    }}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit Batch
+                  </Button>
+                )}
               </div>
 
               {/* ── Right: student roster ── */}

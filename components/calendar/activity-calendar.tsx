@@ -91,7 +91,7 @@ export default function ActivityCalendar({
       {/* Weekday row */}
       <div className="grid shrink-0 grid-cols-7 border-b-2 bg-muted/50 text-center text-xs font-semibold text-muted-foreground">
         {WEEKDAYS.map((d, i) => (
-          <div key={d} className={cn("py-1.5", (i === 0 || i === 6) && "text-primary/70")}>
+          <div key={d} className={cn("py-1.5", i === 0 && "bg-black/5 text-primary/70 dark:bg-white/6")}>
             {d}
           </div>
         ))}
@@ -110,7 +110,18 @@ export default function ActivityCalendar({
               const marker = inMonth ? markerMap.get(key) : undefined;
               const clickable = Boolean(marker && marker.count > 0);
               const today = isToday(day);
-              const isWeekend = di === 0 || di === 6;
+              const isSunday = di === 0;
+
+              // Single background decision (not several possibly-conflicting
+              // bg-* classes) so the whole Sunday column shades consistently,
+              // including the leading/trailing days from adjacent months.
+              const bgClass = !inMonth
+                ? isSunday
+                  ? "bg-black/[0.08] dark:bg-white/[0.1]"
+                  : "bg-muted/20"
+                : isSunday
+                  ? "bg-black/[0.05] dark:bg-white/[0.06]"
+                  : undefined;
 
               return (
                 <button
@@ -120,8 +131,8 @@ export default function ActivityCalendar({
                   onClick={() => clickable && onDaySelect(day)}
                   className={cn(
                     "flex min-h-0 flex-col items-stretch gap-0.5 overflow-hidden border-b-2 border-r-2 p-1 text-left last:border-r-0",
-                    !inMonth && "bg-muted/20 text-muted-foreground",
-                    inMonth && isWeekend && "bg-muted/15",
+                    bgClass,
+                    !inMonth && "text-muted-foreground",
                     today && "bg-primary/5",
                     clickable ? "cursor-pointer hover:bg-accent/50" : "cursor-default"
                   )}

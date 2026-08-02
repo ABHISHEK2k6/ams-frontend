@@ -26,6 +26,8 @@ export interface Batch {
   staff_advisor: StaffAdvisor;
   scheme: string;
   sem: string;
+  // Number of students currently in this batch (returned by list endpoint only).
+  studentCount?: number;
 }
 
 export interface ApiResponse<T> {

@@ -30,16 +30,154 @@ import { DeleteBatchDialog } from "./delete-batch-dialog";
 import { BulkUploadBatchDialog } from "./bulk-upload-batch-dialog";
 import { AdvanceSemesterDialog } from "./advance-semester-dialog";
 
-// Batches are institutionally capped (max ~16 across all years), so a
-// single unpaginated fetch is always cheap — no page-based loading needed.
 const FETCH_LIMIT = 100;
+
+const getDepartmentBadgeColor = (department: string) => {
+  switch (department) {
+    case "CSE": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+    case "ECE": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+    case "IT": return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+    default: return "";
+  }
+};
+
+interface YearGroupProps {
+  year: number;
+  batches: Batch[];
+  defaultOpen: boolean;
+  selectable: boolean;
+  showSem: boolean;
+  editable: boolean;
+  selectedIds: Set<string>;
+  onToggleBatch: (id: string) => void;
+  onToggleYear?: (batches: Batch[]) => void;
+  onView: (batch: Batch) => void;
+  onEdit: (batch: Batch) => void;
+  onDelete: (batch: Batch) => void;
+}
+
+function BatchYearGroup({
+  year,
+  batches,
+  defaultOpen,
+  selectable,
+  showSem,
+  editable,
+  selectedIds,
+  onToggleBatch,
+  onToggleYear,
+  onView,
+  onEdit,
+  onDelete,
+}: YearGroupProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const allSelected = selectable && batches.every((b) => selectedIds.has(b._id));
+  const someSelected = selectable && !allSelected && batches.some((b) => selectedIds.has(b._id));
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <div className="rounded-md border">
+        <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
+          {selectable && (
+            <Checkbox
+              checked={allSelected ? true : someSelected ? "indeterminate" : false}
+              onCheckedChange={() => onToggleYear?.(batches)}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Select all batches in ${year}`}
+            />
+          )}
+          <CollapsibleTrigger asChild>
+            <button type="button" className="flex flex-1 items-center gap-2 py-1 text-left">
+              <ChevronRight className={cn("h-4 w-4 transition-transform", isOpen && "rotate-90")} />
+              <span className="font-semibold">{year}</span>
+              <Badge variant="secondary">{batches.length}</Badge>
+            </button>
+          </CollapsibleTrigger>
+        </div>
+
+        <CollapsibleContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {selectable && <TableHead className="w-10" />}
+                <TableHead>Batch Name</TableHead>
+                {showSem && <TableHead>Semester</TableHead>}
+                <TableHead>Scheme</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Batch Strength</TableHead>
+                <TableHead>Staff Advisor</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {batches.map((batch) => (
+                <TableRow key={batch._id}>
+                  {selectable && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(batch._id)}
+                        onCheckedChange={() => onToggleBatch(batch._id)}
+                        aria-label={`Select ${batch.name}`}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell className="font-medium">{batch.name}</TableCell>
+                  {showSem && <TableCell>{batch.sem}</TableCell>}
+                  <TableCell className="text-muted-foreground">{batch.scheme}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={getDepartmentBadgeColor(batch.department)}>
+                      {batch.department}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{batch.studentCount ?? "—"}</TableCell>
+                  <TableCell>
+                    {batch.staff_advisor ? (
+                      <div>
+                        <div className="font-medium">
+                          {batch.staff_advisor.first_name} {batch.staff_advisor.last_name}
+                        </div>
+                        <div className="text-sm text-muted-foreground">{batch.staff_advisor.email}</div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">No advisor</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => onView(batch)} title="View details">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {editable && (
+                        <Button variant="ghost" size="icon" onClick={() => onEdit(batch)} title="Edit batch">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(batch)}
+                        title="Delete batch"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
 
 export function BatchManagement() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [openYears, setOpenYears] = useState<Set<number>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Dialog states
@@ -104,15 +242,6 @@ export function BatchManagement() {
     await fetchBatches();
   };
 
-  const getDepartmentBadgeColor = (department: string) => {
-    switch (department) {
-      case "CSE": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "ECE": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "IT": return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
-      default: return "";
-    }
-  };
-
   const filteredBatches = batches.filter((batch) => {
     const query = searchQuery.toLowerCase();
     if (!query) return true;
@@ -128,32 +257,21 @@ export function BatchManagement() {
     );
   });
 
-  const yearGroups = useMemo(() => {
+  const activeBatches = useMemo(() => filteredBatches.filter((b) => !isAlumniSem(b.sem)), [filteredBatches]);
+  const alumniBatches = useMemo(() => filteredBatches.filter((b) => isAlumniSem(b.sem)), [filteredBatches]);
+
+  const groupByYear = (list: Batch[]) => {
     const groups = new Map<number, Batch[]>();
-    for (const batch of filteredBatches) {
-      const list = groups.get(batch.adm_year) ?? [];
-      list.push(batch);
-      groups.set(batch.adm_year, list);
+    for (const batch of list) {
+      const bucket = groups.get(batch.adm_year) ?? [];
+      bucket.push(batch);
+      groups.set(batch.adm_year, bucket);
     }
     return [...groups.entries()].sort((a, b) => b[0] - a[0]);
-  }, [filteredBatches]);
-
-  // Default: most recent admission year expanded on first load.
-  useEffect(() => {
-    if (yearGroups.length > 0 && openYears.size === 0) {
-      setOpenYears(new Set([yearGroups[0][0]]));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yearGroups.length]);
-
-  const toggleYear = (year: number) => {
-    setOpenYears((prev) => {
-      const next = new Set(prev);
-      if (next.has(year)) next.delete(year);
-      else next.add(year);
-      return next;
-    });
   };
+
+  const yearGroups = useMemo(() => groupByYear(activeBatches), [activeBatches]);
+  const alumniYearGroups = useMemo(() => groupByYear(alumniBatches), [alumniBatches]);
 
   const toggleBatchSelection = (id: string) => {
     setSelectedIds((prev) => {
@@ -165,13 +283,10 @@ export function BatchManagement() {
   };
 
   const toggleYearSelection = (yearBatches: Batch[]) => {
-    // Alumni batches are graduated and can't be re-advanced — never
-    // included in "select all" for a year.
-    const selectable = yearBatches.filter((b) => !isAlumniSem(b.sem));
-    const allSelected = selectable.every((b) => selectedIds.has(b._id));
+    const allSelected = yearBatches.every((b) => selectedIds.has(b._id));
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      for (const b of selectable) {
+      for (const b of yearBatches) {
         if (allSelected) next.delete(b._id);
         else next.add(b._id);
       }
@@ -243,137 +358,61 @@ export function BatchManagement() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
-          ) : yearGroups.length === 0 ? (
+          ) : yearGroups.length === 0 && alumniYearGroups.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               {searchQuery ? "No batches found matching your search" : "No batches available"}
             </div>
           ) : (
-            <div className="space-y-3">
-              {yearGroups.map(([year, yearBatches]) => {
-                const isOpen = openYears.has(year);
-                const selectableInYear = yearBatches.filter((b) => !isAlumniSem(b.sem));
-                const allSelected =
-                  selectableInYear.length > 0 && selectableInYear.every((b) => selectedIds.has(b._id));
-                const someSelected = !allSelected && selectableInYear.some((b) => selectedIds.has(b._id));
+            <>
+              {yearGroups.length > 0 && (
+                <div className="space-y-3">
+                  {yearGroups.map(([year, yearBatches], index) => (
+                    <BatchYearGroup
+                      key={year}
+                      year={year}
+                      batches={yearBatches}
+                      defaultOpen={index === 0}
+                      selectable
+                      showSem
+                      editable
+                      selectedIds={selectedIds}
+                      onToggleBatch={toggleBatchSelection}
+                      onToggleYear={toggleYearSelection}
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              )}
 
-                return (
-                  <Collapsible key={year} open={isOpen} onOpenChange={() => toggleYear(year)}>
-                    <div className="rounded-md border">
-                      <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
-                        <Checkbox
-                          checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                          onCheckedChange={() => toggleYearSelection(yearBatches)}
-                          onClick={(e) => e.stopPropagation()}
-                          disabled={selectableInYear.length === 0}
-                          aria-label={`Select all batches in ${year}`}
-                        />
-                        <CollapsibleTrigger asChild>
-                          <button
-                            type="button"
-                            className="flex flex-1 items-center gap-2 py-1 text-left"
-                          >
-                            <ChevronRight
-                              className={cn("h-4 w-4 transition-transform", isOpen && "rotate-90")}
-                            />
-                            <span className="font-semibold">{year}</span>
-                            <Badge variant="secondary">{yearBatches.length}</Badge>
-                          </button>
-                        </CollapsibleTrigger>
-                      </div>
-
-                      <CollapsibleContent>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-10" />
-                              <TableHead>Batch Name</TableHead>
-                              <TableHead>Semester</TableHead>
-                              <TableHead>Scheme</TableHead>
-                              <TableHead>Department</TableHead>
-                              <TableHead>Staff Advisor</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {yearBatches.map((batch) => {
-                              const isAlumni = isAlumniSem(batch.sem);
-                              return (
-                              <TableRow key={batch._id}>
-                                <TableCell>
-                                  <Checkbox
-                                    checked={selectedIds.has(batch._id)}
-                                    onCheckedChange={() => toggleBatchSelection(batch._id)}
-                                    disabled={isAlumni}
-                                    title={isAlumni ? "Alumni batches can't be advanced" : undefined}
-                                    aria-label={`Select ${batch.name}`}
-                                  />
-                                </TableCell>
-                                <TableCell className="font-medium">{batch.name}</TableCell>
-                                <TableCell>
-                                  {isAlumni ? (
-                                    <Badge variant="secondary">Alumni</Badge>
-                                  ) : (
-                                    batch.sem
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">{batch.scheme}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className={getDepartmentBadgeColor(batch.department)}>
-                                    {batch.department}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  {batch.staff_advisor ? (
-                                    <div>
-                                      <div className="font-medium">
-                                        {batch.staff_advisor.first_name} {batch.staff_advisor.last_name}
-                                      </div>
-                                      <div className="text-sm text-muted-foreground">{batch.staff_advisor.email}</div>
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted-foreground">No advisor</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex justify-end gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleView(batch)}
-                                      title="View details"
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleEdit(batch)}
-                                      title="Edit batch"
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleDelete(batch)}
-                                      title="Delete batch"
-                                      className="text-destructive hover:text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                );
-              })}
-            </div>
+              {alumniYearGroups.length > 0 && (
+                <div className="mt-6">
+                  <div className="mb-2 flex items-center gap-2">
+                    <h3 className="font-semibold">Alumni</h3>
+                    <Badge variant="secondary">{alumniBatches.length}</Badge>
+                  </div>
+                  <div className="space-y-3">
+                    {alumniYearGroups.map(([year, yearBatches]) => (
+                      <BatchYearGroup
+                        key={year}
+                        year={year}
+                        batches={yearBatches}
+                        defaultOpen={false}
+                        selectable={false}
+                        showSem={false}
+                        editable={false}
+                        selectedIds={selectedIds}
+                        onToggleBatch={toggleBatchSelection}
+                        onView={handleView}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
