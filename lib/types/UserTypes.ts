@@ -63,6 +63,11 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
 
+  /** Better-Auth admin plugin fields */
+  banned?: boolean;
+  banReason?: string;
+  banExpires?: string;
+
   /** Role-specific embedded profile */
   profile: UserProfile;
 }

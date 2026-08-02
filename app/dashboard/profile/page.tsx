@@ -1,6 +1,7 @@
 "use client";
 
 import ProfileForm from "@/components/profile/profile-form";
+import ChangePasswordForm from "@/components/profile/change-password-form";
 import Avatar, { genConfig } from "react-nice-avatar";
 import {
   Avatar as AvatarIcon,
@@ -240,6 +241,18 @@ export default function ProfilePage() {
               </div>
 
               <ProfileForm initialUser={user} />
+            </div>
+
+            {/* Security */}
+            <div className="rounded-2xl border bg-card p-6 shadow-sm mt-6">
+              <div className="flex items-center justify-between mb-5 pb-4 border-b">
+                <h2 className="text-base font-semibold">Security</h2>
+                <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                  Password
+                </span>
+              </div>
+
+              <ChangePasswordForm />
             </div>
           </div>
         </div>
