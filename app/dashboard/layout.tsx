@@ -2,7 +2,7 @@
 
 import Navbar from "@/components/appshell/navbar";
 import { useEffect, useMemo } from "react";
-import { BellRing, BookOpen, Home, Users, ClipboardCheck } from "lucide-react";
+import { BellRing, BookOpen, Home, Users, ClipboardCheck, CalendarDays } from "lucide-react";
 import Dock from '@/components/appshell/Dock';
 import { Toaster } from '@/components/ui/sonner';
 import { useRouter, usePathname } from 'next/navigation';
@@ -17,6 +17,7 @@ const SHARED_ROUTES = [
   "/dashboard/profile",
   "/dashboard/notifications",
   "/dashboard/assignments",
+  "/dashboard/calendar",
 ];
 
 export default function DashboardLayout({
@@ -83,6 +84,11 @@ export default function DashboardLayout({
         { icon: <ClipboardCheck size={18} />, label: 'Attendance', onClick: () => router.push('/dashboard/attendance') }
       );
     }
+
+    // Calendar — shared by all roles
+    baseItems.push(
+      { icon: <CalendarDays size={18} />, label: 'Calendar', onClick: () => router.push('/dashboard/calendar') },
+    );
 
     // Common items for all roles
     if (notificationsEnabled) {
@@ -157,11 +163,11 @@ export default function DashboardLayout({
           {isSharedRoute && children}
 
           {!isSharedRoute && user.role === "student" && student}
-          {!isSharedRoute && user.role === "admin" && admin}
-          {!isSharedRoute && (user.role === "teacher" || user.role === "hod") && teacher}
+          {!isSharedRoute && ["admin", "principal", "hod"].includes(user.role) && admin}
+          {!isSharedRoute && user.role === "teacher" && teacher}
           {!isSharedRoute && user.role === "parent" && parent}
 
-          {!isSharedRoute && !["student", "admin", "teacher", "hod", "parent"].includes(user.role) && (
+          {!isSharedRoute && !["student", "admin", "principal", "hod", "teacher", "parent"].includes(user.role) && (
             <div className="flex flex-1 items-center justify-center">
               <p>Your role &quot;{user.role}&quot; does not have a dashboard implemented yet.</p>
             </div>
