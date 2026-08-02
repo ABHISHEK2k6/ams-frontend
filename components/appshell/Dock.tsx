@@ -9,7 +9,7 @@ import {
   type SpringOptions,
   AnimatePresence
 } from 'framer-motion';
-import React, { Children, cloneElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Children, cloneElement, useCallback, useEffect, useRef, useState } from 'react';
 import { getUnreadCount } from '@/lib/api/notification';
 import { useAuth } from '@/lib/auth-context';
 
@@ -158,7 +158,6 @@ export default function Dock({
   magnification = 70,
   distance = 200,
   panelHeight = 64,
-  dockHeight = 256,
   baseItemSize = 50
 }: DockProps) {
   const mouseX = useMotionValue(Infinity);
@@ -166,27 +165,27 @@ export default function Dock({
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const userId = user?._id;
+
   const refreshUnreadCount = useCallback(async () => {
     try {
-      const count = await getUnreadCount(user?._id);
+      const count = await getUnreadCount(userId);
       setUnreadCount(count);
     } catch {
       setUnreadCount(0);
     }
-  }, [user?._id]);
-
-  const maxHeight = useMemo(
-    () => Math.max(dockHeight, magnification + magnification / 2 + 4),
-    [dockHeight, magnification]
-  );
-  const heightRow = useTransform(isHovered, [0, 1], [panelHeight, maxHeight]);
-  const height = useSpring(heightRow, spring);
+  }, [userId]);
 
   // Fetch unread notification count once when the app loads or user logs in
   useEffect(() => {
-    if (!user?._id) return;
-    refreshUnreadCount();
-  }, [user?._id, refreshUnreadCount]);
+    if (!userId) return;
+
+    const timer = window.setTimeout(() => {
+      void refreshUnreadCount();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [userId, refreshUnreadCount]);
 
   // Keep local tab/state events updated without triggering network polling
   useEffect(() => {
@@ -209,42 +208,40 @@ export default function Dock({
   return (
     <>
       {/* Desktop Dock */}
-      <motion.div style={{ height, scrollbarWidth: 'none' }} className="hidden sm:flex mx-2 max-w-full items-center">
-        <motion.div
-          onMouseMove={({ pageX }) => {
-            isHovered.set(1);
-            mouseX.set(pageX);
-          }}
-          onMouseLeave={() => {
-            isHovered.set(0);
-            mouseX.set(Infinity);
-          }}
-          className={`${className} absolute z-80 bottom-2 left-1/2 transform -translate-x-1/2 flex items-end w-fit gap-4 rounded-2xl border-border border-2 pb-2 px-4 bg-background/80 backdrop-blur-sm`}
-          style={{ height: panelHeight }}
-          role="toolbar"
-          aria-label="Application dock"
-        >
-          {items.map((item, index) => {
-            const isNotifications = typeof item.label === 'string' && item.label.toLowerCase() === 'notifications';
-            const badgeCount = isNotifications ? unreadCount : 0;
+      <motion.div
+        onMouseMove={({ pageX }) => {
+          isHovered.set(1);
+          mouseX.set(pageX);
+        }}
+        onMouseLeave={() => {
+          isHovered.set(0);
+          mouseX.set(Infinity);
+        }}
+        className={`${className} hidden sm:flex fixed z-80 bottom-2 left-1/2 -translate-x-1/2 items-end w-fit gap-4 rounded-2xl border-border border-2 pb-2 px-4 bg-background/80 backdrop-blur-sm`}
+        style={{ height: panelHeight }}
+        role="toolbar"
+        aria-label="Application dock"
+      >
+        {items.map((item, index) => {
+          const isNotifications = typeof item.label === 'string' && item.label.toLowerCase() === 'notifications';
+          const badgeCount = isNotifications ? unreadCount : 0;
 
-            return (
-              <DockItem
-                key={index}
-                onClick={item.onClick}
-                className={item.className}
-                mouseX={mouseX}
-                spring={spring}
-                distance={distance}
-                magnification={magnification}
-                baseItemSize={baseItemSize}
-              >
-                <DockIcon badgeCount={badgeCount}>{item.icon}</DockIcon>
-                <DockLabel>{item.label}</DockLabel>
-              </DockItem>
-            );
-          })}
-        </motion.div>
+          return (
+            <DockItem
+              key={index}
+              onClick={item.onClick}
+              className={item.className}
+              mouseX={mouseX}
+              spring={spring}
+              distance={distance}
+              magnification={magnification}
+              baseItemSize={baseItemSize}
+            >
+              <DockIcon badgeCount={badgeCount}>{item.icon}</DockIcon>
+              <DockLabel>{item.label}</DockLabel>
+            </DockItem>
+          );
+        })}
       </motion.div>
 
       {/* Mobile Bottom Navigation */}

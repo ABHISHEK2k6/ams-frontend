@@ -156,6 +156,7 @@ export function SubjectManagement() {
       subject.name.toLowerCase().includes(query) ||
       subject.subject_code.toLowerCase().includes(query) ||
       subject.sem.toLowerCase().includes(query) ||
+      subject.department?.toLowerCase().includes(query) ||
       subject.type.toLowerCase().includes(query)
     );
   });
@@ -218,6 +219,7 @@ export function SubjectManagement() {
                       <TableHead>Subject Code</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Semester</TableHead>
+                      <TableHead>Department</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Marks</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -229,6 +231,7 @@ export function SubjectManagement() {
                         <TableCell className="font-medium">{subject.subject_code}</TableCell>
                         <TableCell>{subject.name}</TableCell>
                         <TableCell>Sem {subject.sem}</TableCell>
+                        <TableCell>{subject.department || '—'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={getTypeBadgeColor(subject.type)}>
                             {subject.type}

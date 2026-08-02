@@ -298,7 +298,12 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
 
     if (formState.targetGroup === "college") {
       targetID = undefined;
-    } else if (targetUsers.some((u) => ["parent", "teacher", "staff"].includes(u)) && !targetUsers.includes("student")) {
+    } else if (
+      targetUsers.some((u) => ["teacher", "staff"].includes(u)) &&
+      !targetUsers.includes("student") &&
+      !targetUsers.includes("parent")
+    ) {
+      // If only staff/teacher are targeted (and not students or parents), backend expects "all"
       targetID = "all";
     } else {
       if (formState.targetGroup === "batch" && !formState.targetID.trim()) {
@@ -397,7 +402,11 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
 
     if (formState.targetGroup === "college") {
       targetID = undefined;
-    } else if (targetUsers.some((u) => ["parent", "teacher", "staff"].includes(u)) && !targetUsers.includes("student")) {
+    } else if (
+      targetUsers.some((u) => ["teacher", "staff"].includes(u)) &&
+      !targetUsers.includes("student") &&
+      !targetUsers.includes("parent")
+    ) {
       targetID = "all";
     } else {
       if (formState.targetGroup === "batch" && !formState.targetID.trim()) {

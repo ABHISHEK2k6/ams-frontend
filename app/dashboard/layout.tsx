@@ -23,12 +23,14 @@ export default function DashboardLayout({
   children,
   admin,
   student,
-  teacher
+  teacher,
+  parent
 }: Readonly<{
   children: React.ReactNode;
   admin: React.ReactNode;
   student: React.ReactNode;
   teacher: React.ReactNode;
+  parent: React.ReactNode;
 }>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -36,9 +38,9 @@ export default function DashboardLayout({
   const isSharedRoute = SHARED_ROUTES.some((r) => pathname.startsWith(r));
   const notificationsEnabled = Boolean(config[FLAGS.NOTIFICATIONS]);
 
-  const profileImageConfig: ReturnType<typeof genConfig> = useMemo(() => {
+  const profileImageConfig = useMemo(() => {
     const gender = user?.gender?.toLowerCase();
-    const userGender: "man" | "woman" = gender == "male" || gender === "man" ? "man" : "woman";
+    const userGender: "man" | "woman" = gender === "male" || gender === "man" ? "man" : "woman";
     const randomConfig = genConfig(user?.email || "");
     return {
       ...randomConfig,
@@ -47,12 +49,14 @@ export default function DashboardLayout({
   }, [user?.email, user?.gender]);
 
   const dockItems = useMemo(() => {
-    const baseItems = [
+    if (!user) return [];
+
+    const baseItems: Array<{ icon: React.ReactNode; label: string; onClick: () => void }> = [
       { icon: <Home size={18} />, label: 'Home', onClick: () => router.push('/dashboard') },
     ];
 
     // Admin-specific items
-    if (user?.role === 'admin' || user?.role === 'principal') {
+    if (user.role === 'admin' || user.role === 'principal') {
       baseItems.push(
         { icon: <Users size={18} />, label: 'Users', onClick: () => router.push('/dashboard/users') },
         { icon: <BookOpen size={18} />, label: 'Academics', onClick: () => router.push('/dashboard/academics') },
@@ -60,14 +64,21 @@ export default function DashboardLayout({
     }
 
     // Student-specific items
-    if (user?.role === 'student') {
+    if (user.role === 'student') {
+      baseItems.push(
+        { icon: <ClipboardCheck size={18} />, label: 'Attendance', onClick: () => router.push('/dashboard/attendance') }
+      );
+    }
+
+    // Parent-specific items
+    if (user.role === 'parent') {
       baseItems.push(
         { icon: <ClipboardCheck size={18} />, label: 'Attendance', onClick: () => router.push('/dashboard/attendance') }
       );
     }
 
     // Teacher-specific items
-    if (user?.role === 'teacher' || user?.role === 'hod') {
+    if (user.role === 'teacher' || user.role === 'hod') {
       baseItems.push(
         { icon: <ClipboardCheck size={18} />, label: 'Attendance', onClick: () => router.push('/dashboard/attendance') }
       );
@@ -79,8 +90,6 @@ export default function DashboardLayout({
         { icon: <BellRing size={18} />, label: 'Notifications', onClick: () => router.push('/dashboard/notifications') },
       );
     }
-
-    //{ icon: <Book size={18} />, label: 'Assignments', onClick: () => router.push('/dashboard/assignments') },
 
     // Profile item (always last)
     baseItems.push({
@@ -100,16 +109,13 @@ export default function DashboardLayout({
   }, [notificationsEnabled, router, user, profileImageConfig]);
 
   useEffect(() => {
-    // Still loading, don't do anything yet
     if (isLoading) return;
 
-    // Not authenticated
     if (!session || !user) {
       router.push('/signin');
       return;
     }
 
-    // User needs onboarding - redirect immediately
     if (incompleteProfile) {
       router.push('/onboarding');
       return;
@@ -127,7 +133,6 @@ export default function DashboardLayout({
     return <Loading />;
   }
 
-  // If user data not ready or needs onboarding, show loader (don't render dashboard)
   if (!user || incompleteProfile) {
     return <Loading />;
   }
@@ -154,8 +159,9 @@ export default function DashboardLayout({
           {!isSharedRoute && user.role === "student" && student}
           {!isSharedRoute && user.role === "admin" && admin}
           {!isSharedRoute && (user.role === "teacher" || user.role === "hod") && teacher}
+          {!isSharedRoute && user.role === "parent" && parent}
 
-          {!isSharedRoute && !["student", "admin", "teacher", "hod"].includes(user.role) && (
+          {!isSharedRoute && !["student", "admin", "teacher", "hod", "parent"].includes(user.role) && (
             <div className="flex flex-1 items-center justify-center">
               <p>Your role &quot;{user.role}&quot; does not have a dashboard implemented yet.</p>
             </div>
