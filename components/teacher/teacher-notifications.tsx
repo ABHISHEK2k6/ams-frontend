@@ -62,6 +62,8 @@ type UiNotification = {
   priorityLevel: string;
   notificationType: string;
   targetGroup?: string;
+  targetID?: string;
+  targetUsers?: string[];
   createdAt?: string;
 };
 
@@ -143,7 +145,9 @@ const normalizeNotification = (notification: NotificationRecord, index: number):
     priorityLevel,
     notificationType,
     targetGroup: notification.targetGroup,
-    createdAt
+    createdAt,
+    targetID: (notification as any).targetID,
+    targetUsers: (notification as any).targetUsers,
   };
 };
 
@@ -199,6 +203,7 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notificationToDelete, setNotificationToDelete] = useState<UiNotification | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
@@ -354,6 +359,7 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
   const handleDeleteNotification = async (id: string) => {
     try {
       await deleteNotification(id);
+      setNotificationToDelete(null);
       setNotifications((prev) => prev.filter((notif) => notif.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete notification");
@@ -363,13 +369,13 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
   const handleOpenEdit = (notification: UiNotification) => {
     setEditingId(notification.id);
     setFormState({
-      targetGroup: notification.targetGroup || "batch",
-      targetID: "",
-      targetUsers: ["student"],
+      targetGroup: notification.targetGroup || 'batch',
+      targetID: notification.targetID || '',
+      targetUsers: notification.targetUsers && notification.targetUsers.length > 0 ? notification.targetUsers : ['student'],
       title: notification.title,
       message: notification.message,
       priorityLevel: notification.priorityLevel.toLowerCase(),
-      notificationType: mapTypeToUi(notification.notificationType)
+      notificationType: mapTypeToUi(notification.notificationType),
     });
     setFormError(null);
     setIsEditOpen(true);
@@ -479,13 +485,12 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
   };
 
   const sortedNotifications = useMemo(() => {
-    return [...notifications].sort((a, b) => {
-      const priorityDiff = getPriorityRank(b.priorityLevel) - getPriorityRank(a.priorityLevel);
-      if (priorityDiff !== 0) return priorityDiff;
+    const sorted = [...notifications].sort((a, b) => {
       const aTime = getNotificationCreatedTime(a.createdAt, a.id);
       const bTime = getNotificationCreatedTime(b.createdAt, b.id);
       return bTime - aTime;
     });
+    return sorted.slice(0, 5);
   }, [notifications]);
 
   if (!notificationsEnabled) {
@@ -1263,7 +1268,7 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 min-h-0">
+      <CardContent className="flex-1 min-h-0 -mx-3">
         {error && (
           <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
@@ -1283,10 +1288,10 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
               {sortedNotifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className="p-4 border rounded-lg transition-colors border-border bg-muted/20"
+                  className="p-2 border rounded-lg transition-colors border-border bg-muted/20"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-2 min-w-0">
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium text-sm truncate" title={notification.title}>
                           {notification.title}
@@ -1307,11 +1312,11 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center">
                       <Button size="sm" variant="ghost" onClick={() => handleOpenEdit(notification)}>
                         <Edit className="w-3 h-3 text-blue-600" />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteNotification(notification.id)}>
+                      <Button size="sm" variant="ghost" onClick={() => setNotificationToDelete(notification)}>
                         <Trash2 className="w-3 h-3 text-destructive" />
                       </Button>
                     </div>
@@ -1322,6 +1327,31 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
           </div>
         )}
       </CardContent>
+      {notificationToDelete && (
+        <Dialog open={!!notificationToDelete} onOpenChange={(open) => !open && setNotificationToDelete(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Are you sure you want to delete this?</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete the notification titled &quot;{notificationToDelete.title}&quot;.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNotificationToDelete(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (notificationToDelete) handleDeleteNotification(notificationToDelete.id);
+                }}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 }

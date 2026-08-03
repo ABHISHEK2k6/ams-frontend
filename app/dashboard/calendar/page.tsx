@@ -20,7 +20,7 @@ const ROLE_DESCRIPTION: Record<string, string> = {
   hod: "Classes taken in your department.",
   principal: "Classes taken institution-wide.",
   admin: "Classes taken institution-wide.",
-  parent: "Calendar view for parents is coming soon.",
+  parent: "Your child's attendance at a glance.",
 };
 
 export default function CalendarPage() {

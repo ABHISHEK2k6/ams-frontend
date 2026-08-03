@@ -5,7 +5,7 @@ import { AlertCircle, Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -208,6 +208,7 @@ export default function NotificationsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeNotification, setActiveNotification] = useState<UiNotification | null>(null);
+  const [notificationToDelete, setNotificationToDelete] = useState<UiNotification | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const canCreateNotification = user?.role === "teacher";
   const [formState, setFormState] = useState({
@@ -302,6 +303,7 @@ export default function NotificationsPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteNotification(id);
+      setNotificationToDelete(null);
       setNotifications((prev) => prev.filter((notification) => notification.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete notification");
@@ -414,7 +416,7 @@ export default function NotificationsPage() {
                             <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-48 z-[150]">
+                        <DropdownMenuContent align="start" className="w-48 z-150">
                           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Target Recipients</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           {['student','staff','parent'].map((role) => {
@@ -453,7 +455,7 @@ export default function NotificationsPage() {
                             <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-44 z-[150]">
+                        <DropdownMenuContent align="start" className="w-44 z-150">
                           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Target Group</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           {[
@@ -491,7 +493,7 @@ export default function NotificationsPage() {
                               <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-56 max-h-60 overflow-y-auto z-[150]">
+                          <DropdownMenuContent align="start" className="w-56 max-h-60 overflow-y-auto z-150">
                             <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Select Batch</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {batches.map((batch) => {
@@ -525,7 +527,7 @@ export default function NotificationsPage() {
                               <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-48 max-h-60 overflow-y-auto z-[150]">
+                          <DropdownMenuContent align="start" className="w-48 max-h-60 overflow-y-auto z-150">
                             <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Select Year</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {availableYears.map((yr) => (
@@ -558,7 +560,7 @@ export default function NotificationsPage() {
                               <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-48 max-h-60 overflow-y-auto z-[150]">
+                          <DropdownMenuContent align="start" className="w-48 max-h-60 overflow-y-auto z-150">
                             <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Select Department</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {availableDepartments.map((dept) => (
@@ -589,7 +591,7 @@ export default function NotificationsPage() {
                         onChange={(event) => setFormState((prev) => ({ ...prev, message: event.target.value }))}
                         placeholder="Share notification body details..."
                         rows={6}
-                        className="min-h-[160px] resize-none border border-border/60 bg-muted/20 focus-visible:ring-1 focus-visible:ring-ring p-4 rounded-lg text-sm leading-relaxed placeholder:text-muted-foreground/40 shadow-xs"
+                        className="min-h-40 resize-none border border-border/60 bg-muted/20 focus-visible:ring-1 focus-visible:ring-ring p-4 rounded-lg text-sm leading-relaxed placeholder:text-muted-foreground/40 shadow-xs"
                       />
                     </div>
 
@@ -624,7 +626,7 @@ export default function NotificationsPage() {
                             <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-44 z-[150]">
+                        <DropdownMenuContent align="start" className="w-44 z-150">
                           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Priority Level</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={() => setFormState((prev) => ({ ...prev, priorityLevel: "low" }))} className="text-xs flex items-center justify-between cursor-pointer">
@@ -682,7 +684,7 @@ export default function NotificationsPage() {
                             <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-44 z-[150]">
+                        <DropdownMenuContent align="start" className="w-44 z-150">
                           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Notification Type</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           {[
@@ -815,7 +817,7 @@ export default function NotificationsPage() {
                             className="w-full justify-center text-destructive md:w-auto"
                             onClick={(event) => {
                               event.stopPropagation();
-                              handleDelete(notification.id);
+                              setNotificationToDelete(notification);
                             }}
                           >
                             Delete
@@ -830,6 +832,31 @@ export default function NotificationsPage() {
           )}
         </CardContent>
       </Card>
+      {notificationToDelete && (
+        <Dialog open={!!notificationToDelete} onOpenChange={(open) => !open && setNotificationToDelete(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Are you sure you want to delete this?</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete the notification titled &quot;{notificationToDelete.title}&quot;.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNotificationToDelete(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (notificationToDelete) handleDelete(notificationToDelete.id);
+                }}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       <Dialog open={Boolean(activeNotification)} onOpenChange={(open) => {
         if (!open) setActiveNotification(null);
       }}>

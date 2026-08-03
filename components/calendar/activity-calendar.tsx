@@ -53,7 +53,7 @@ export default function ActivityCalendar({
   className,
 }: ActivityCalendarProps) {
   const markerMap = useMemo(() => new Map(markers.map((m) => [m.date, m])), [markers]);
-  const isStudent = role === "student";
+  const showStatus = role === "student" || role === "parent";
 
   const weeks = useMemo(() => {
     const start = startOfWeek(startOfMonth(month));
@@ -154,12 +154,12 @@ export default function ActivityCalendar({
                     <span
                       className={cn(
                         "truncate rounded px-1.5 py-0.5 text-[11px] font-medium shadow-sm",
-                        isStudent
+                      showStatus
                           ? STATUS_STYLE[marker.status ?? "absent"]
                           : "bg-primary/15 text-primary"
                       )}
                     >
-                      {isStudent
+                      {showStatus
                         ? `${STATUS_LABEL[marker.status ?? "absent"]} (${marker.count})`
                         : `${marker.count} class${marker.count === 1 ? "" : "es"}`}
                     </span>

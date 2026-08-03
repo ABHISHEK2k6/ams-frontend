@@ -141,7 +141,7 @@ function DockIcon({ children, className = '', badgeCount }: DockIconProps) {
       {children}
       {badgeCount && badgeCount > 0 ? (
         <span
-          className="absolute -right-1 -top-1 flex h-5 min-w-[20px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground"
+          className="absolute -right-1 -top-1 flex h-5 min-w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground"
           aria-label={`${badgeCount} unread notifications`}
         >
           {badgeCount > 99 ? '99+' : badgeCount}
@@ -262,7 +262,7 @@ export default function Dock({
                   {item.icon}
                   {badgeCount > 0 ? (
                     <span
-                      className="absolute -right-1 -top-1 flex h-5 min-w-[20px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground"
+                      className="absolute -right-1 -top-1 flex h-5 min-w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground"
                       aria-label={`${badgeCount} unread notifications`}
                     >
                       {badgeCount > 99 ? '99+' : badgeCount}

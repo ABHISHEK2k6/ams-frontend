@@ -213,20 +213,20 @@ export default function ParentDashboardPage() {
       <GreetingHeader userName={user?.first_name || user?.name || "Parent"} />
 
       {child ? (
-        <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <Card className="border-primary/20 bg-linear-to-br from-background to-primary/5">
+          <CardHeader className="flex flex-row items-center gap-4">
             {child.image && child.image !== "gen" ? (
-              <Avatar className="h-16 w-16">
+              <Avatar className="h-16 w-16 shrink-0">
                 <AvatarImage src={child.image} alt={child.name} />
                 <AvatarFallback>{child.name?.[0] || "C"}</AvatarFallback>
               </Avatar>
             ) : (
-              <NiceAvatar {...profileImageConfig} className="h-16 w-16" />
+              <NiceAvatar {...profileImageConfig} className="h-16 w-16 shrink-0" />
             )}
-            <div className="text-center sm:text-left">
+            <div className="text-left">
               <CardTitle className="text-2xl">{child.name}</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">Viewing your child’s current progress and updates</p>
-              <div className="text-muted-foreground flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-1 mt-2 text-sm">
+              <div className="text-muted-foreground flex flex-wrap justify-start gap-x-4 gap-y-1 mt-2 text-sm">
                 <span>{child.profile.admission_number}</span>
                 <span>{child.profile.department.name}</span>
                 <span>{child.profile.batch.name}</span>
