@@ -83,13 +83,6 @@ const toneClasses = {
     success: "text-emerald-500 bg-emerald-500/10",
 };
 
-const statsData = [
-    { label: "Students Managed", value: "10,000+", icon: GraduationCap },
-    { label: "Attendance Sessions", value: "500K+", icon: ClipboardCheck },
-    { label: "Active Institutions", value: "20+", icon: BarChart3 },
-    { label: "Accuracy Rate", value: "99.9%", icon: Sparkles },
-];
-
 const previewSections: PreviewItem[] = [
     {
         title: "Admin Overview",
@@ -281,22 +274,7 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* ── Stats Bar ── */}
-            <section className="border-b border-border bg-card">
-                <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
-                    <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
-                        {statsData.map(({ label, value, icon: Icon }) => (
-                            <div key={label} className="flex flex-col items-center gap-1 px-4 py-5 text-center sm:px-6 sm:py-6">
-                                <div className="mb-1 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-8 sm:w-8">
-                                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                </div>
-                                <p className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{value}</p>
-                                <p className="text-[10px] text-muted-foreground sm:text-xs">{label}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
+
 
             <main className="mx-auto w-full max-w-7xl space-y-12 px-4 py-10 sm:space-y-16 sm:px-8 sm:py-14 lg:px-12 lg:py-20">
                 {/* ── Features Section ── */}
