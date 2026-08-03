@@ -53,6 +53,7 @@ export interface ListBatchesParams {
   limit?: number;
   department?: Department;
   adm_year?: number;
+  staff_advisor?: string;
 }
 
 export interface CreateBatchData {
@@ -182,6 +183,7 @@ export async function listBatches(params?: ListBatchesParams): Promise<ListBatch
   if (params?.limit) queryParams.append('limit', Math.min(params.limit, 100).toString());
   if (params?.department) queryParams.append('department', params.department);
   if (params?.adm_year) queryParams.append('adm_year', params.adm_year.toString());
+  if (params?.staff_advisor) queryParams.append('staff_advisor', params.staff_advisor);
 
   const response = await fetch(`${API_BASE}/academics/batch?${queryParams.toString()}`, {
     method: 'GET',

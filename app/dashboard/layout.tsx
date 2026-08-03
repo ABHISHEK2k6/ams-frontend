@@ -2,7 +2,7 @@
 
 import Navbar from "@/components/appshell/navbar";
 import { useEffect, useMemo } from "react";
-import { BellRing, BookOpen, Home, Users, ClipboardCheck, CalendarDays } from "lucide-react";
+import { BellRing, BookOpen, Home, Users, ClipboardCheck, CalendarDays, GraduationCap } from "lucide-react";
 import Dock from '@/components/appshell/Dock';
 import { Toaster } from '@/components/ui/sonner';
 import { useRouter, usePathname } from 'next/navigation';
@@ -18,6 +18,7 @@ const SHARED_ROUTES = [
   "/dashboard/notifications",
   "/dashboard/assignments",
   "/dashboard/calendar",
+  "/dashboard/grades",
 ];
 
 export default function DashboardLayout({
@@ -84,6 +85,11 @@ export default function DashboardLayout({
         { icon: <ClipboardCheck size={18} />, label: 'Attendance', onClick: () => router.push('/dashboard/attendance') }
       );
     }
+
+    // Grades — shared by all roles
+    baseItems.push(
+      { icon: <GraduationCap size={18} />, label: 'Grades', onClick: () => router.push('/dashboard/grades') },
+    );
 
     // Calendar — shared by all roles
     baseItems.push(
