@@ -14,22 +14,10 @@ import { AlertCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { genConfig } from "react-nice-avatar";
 import NiceAvatar from "react-nice-avatar";
-
-interface Child {
-  _id: string;
-  name: string;
-  email: string;
-  image?: string;
-  gender?: string;
-  profile: {
-    admission_number: string;
-    department: { _id: string; name: string };
-    batch: { _id: string; name: string };
-  };
-}
+import { User } from "@/lib/types/UserTypes";
 
 interface ParentProfile {
-  child?: Child | string;
+  child?: User | string;
 }
 
 const mapNotificationType = (notificationType: string) => {
@@ -77,7 +65,7 @@ const normalizeNotification = (notification: NotificationRecord, index: number) 
 
 export default function ParentDashboardPage() {
   const { user, session } = useAuth();
-  const [child, setChild] = useState<Child | null>(null);
+  const [child, setChild] = useState<User | null>(null);
   const [attendance, setAttendance] = useState<SubjectAttendanceStats[]>([]);
   const [notifications, setNotifications] = useState<ReturnType<typeof normalizeNotification>[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
@@ -123,18 +111,7 @@ export default function ParentDashboardPage() {
       }
 
       try {
-        let childDetails: Child | null = null;
-
-        if (typeof childDataOrId === "string") {
-          const res = await fetchWithToken(`/user/${childDataOrId}`);
-          if (!res.ok) {
-            throw new Error(`Failed to fetch child details (status: ${res.status})`);
-          }
-          const childUser = (await res.json()) as { data?: Child } & Record<string, unknown>;
-          childDetails = (childUser.data || childUser) as Child;
-        } else if (typeof childDataOrId === "object" && childDataOrId !== null && "_id" in childDataOrId) {
-          childDetails = childDataOrId;
-        }
+        let childDetails: User | null = (user.profile as ParentProfile | undefined)?.child as User | null;
 
         if (!childDetails) {
           throw new Error("Child details could not be resolved from profile.");
@@ -224,12 +201,11 @@ export default function ParentDashboardPage() {
               <NiceAvatar {...profileImageConfig} className="h-16 w-16 shrink-0" />
             )}
             <div className="text-left">
-              <CardTitle className="text-2xl">{child.name}</CardTitle>
+              <CardTitle className="text-2xl">{child.first_name} {child.last_name}</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">Viewing your child’s current progress and updates</p>
-              <div className="text-muted-foreground flex flex-wrap justify-start gap-x-4 gap-y-1 mt-2 text-sm">
-                <span>{child.profile.admission_number}</span>
-                <span>{child.profile.department.name}</span>
-                <span>{child.profile.batch.name}</span>
+              <div className="text-muted-foreground flex flex-wrap justify-start gap-1 mt-2 text-sm">
+                {// @ts-expect-error
+                child.profile?.candidate_code && <span>{child.profile.candidate_code}</span>}({child.profile?.department && child.profile.department})
               </div>
             </div>
           </CardHeader>
