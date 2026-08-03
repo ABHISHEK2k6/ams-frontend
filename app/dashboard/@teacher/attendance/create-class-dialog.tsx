@@ -166,7 +166,7 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
               <div className="flex items-top gap-1.5 min-w-0">
                 <BookOpen className="h-4 w-4 text-primary mt-5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-semibold line-clamp-2 break-words">
+                  <p className="font-semibold line-clamp-2 wrap-break-word">
                     {selectedSubject ? selectedSubject.name : <span className="text-muted-foreground font-normal">No subject selected</span>}
                   </p>
                   <p className="text-xs text-muted-foreground">

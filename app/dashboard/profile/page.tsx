@@ -233,12 +233,7 @@ export default function ProfilePage() {
           {/* Right Card */}
           <div className="lg:col-span-2">
             <div className="rounded-2xl border bg-card p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5 pb-4 border-b">
-                <h2 className="text-base font-semibold">Edit information</h2>
-                <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                  Personal details
-                </span>
-              </div>
+              
 
               <ProfileForm initialUser={user} />
             </div>

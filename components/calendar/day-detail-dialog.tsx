@@ -35,7 +35,7 @@ interface DayDetailDialogProps {
 }
 
 export default function DayDetailDialog({ open, onOpenChange, date, loading, detail }: DayDetailDialogProps) {
-  const isStudent = detail?.role === "student";
+  const showStudentView = detail?.role === "student" || detail?.role === "parent";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -60,9 +60,9 @@ export default function DayDetailDialog({ open, onOpenChange, date, loading, det
               <TableRow>
                 <TableHead>Time</TableHead>
                 <TableHead>Subject</TableHead>
-                <TableHead>{isStudent ? "Teacher" : "Batch"}</TableHead>
-                {!isStudent && "teacher" in detail.sessions[0] && <TableHead>Teacher</TableHead>}
-                <TableHead className="text-right">{isStudent ? "Status" : "Attendance"}</TableHead>
+                <TableHead>{showStudentView ? "Teacher" : "Batch"}</TableHead>
+                {!showStudentView && detail.sessions.length > 0 && "teacher" in detail.sessions[0] && <TableHead>Teacher</TableHead>}
+                <TableHead className="text-right">{showStudentView ? "Status" : "Attendance"}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -72,7 +72,7 @@ export default function DayDetailDialog({ open, onOpenChange, date, loading, det
                   "h:mm a"
                 )}`;
 
-                if (isStudent) {
+                if (showStudentView) {
                   const s = session as StudentCalendarSession;
                   return (
                     <TableRow key={s.sessionId}>
