@@ -141,6 +141,14 @@ export interface BulkCreateUserData {
   department?: Department;
   date_of_birth?: string;
   batch?: string;
+
+  // Staff flat fields (teacher/hod/principal/staff/admin)
+  designation?: string;
+  date_of_joining?: string;
+
+  // Parent flat fields
+  relation?: ParentRelation;
+  child_candidate_code?: string;
 }
 
 export interface BulkCreateUsersSuccess {
