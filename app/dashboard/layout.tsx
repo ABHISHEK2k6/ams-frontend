@@ -57,7 +57,7 @@ export default function DashboardLayout({
     ];
 
     // Admin-specific items
-    if (user.role === 'admin' || user.role === 'principal') {
+    if (user.role === 'admin' || user.role === 'principal' || user.role === 'hod') {
       baseItems.push(
         { icon: <Users size={18} />, label: 'Users', onClick: () => router.push('/dashboard/users') },
         { icon: <BookOpen size={18} />, label: 'Academics', onClick: () => router.push('/dashboard/academics') },
