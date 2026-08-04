@@ -10,7 +10,10 @@ import { User, UpdateUserData } from "@/lib/types/UserTypes";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -55,13 +58,13 @@ const userFormSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name:  z.string().min(1, "Last name is required"),
   phone:      z.number().optional(),
-  gender:     z.enum(["male", "female", "other"] as const).optional(),
+  gender:     z.enum(["male", "female", "other"] as const).optional().or(z.literal(undefined)),
 
   // Student profile fields
   adm_number:     z.string().optional(),
   adm_year:       z.number().optional(),
   candidate_code: z.string().optional(),
-  department:     z.enum(["CSE", "ECE", "IT"] as const).optional(),
+  department:     z.enum(["CSE", "ECE", "IT"] as const).optional().or(z.literal(undefined)),
   date_of_birth:  z.string().optional(),
 
   // Staff profile fields
@@ -72,7 +75,6 @@ const userFormSchema = z.object({
   relation: z.enum(["mother", "father", "guardian"] as const).optional(),
   child_candidate_code: z.string().optional(),
 });
-
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserDialogProps {
@@ -187,7 +189,7 @@ export function UserDialog({
         // Student fields (from profile)
         adm_number:     p.adm_number     ?? "",
         adm_year:       p.adm_year,
-        candidate_code: p.candidate_code ?? "",
+        candidate_code: user.role === 'parent' ? p.child?.profile?.candidate_code ?? "" : p.candidate_code ?? "",
         department:     p.department,
         date_of_birth:  p.date_of_birth
           ? new Date(p.date_of_birth).toISOString().split("T")[0]
@@ -242,7 +244,14 @@ export function UserDialog({
         updateData.profile = profile;
       }
 
-      await updateUserById(fullUser._id, updateData);
+      const response = await updateUserById(fullUser._id, updateData);
+
+      if (role === 'parent' && response.data?.child_name) {
+        toast.success(`User updated. Child "${response.data.child_name}" linked successfully.`);
+      } else {
+        toast.success("User updated successfully.");
+      }
+
       if (onSuccess) onSuccess();
       setIsEditing(false);
     } catch (err) {
@@ -304,6 +313,12 @@ export function UserDialog({
           "[&>button]:hidden"
         )}
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>User Details: {fullUser.name}</DialogTitle>
+          <DialogDescription>
+            View, edit, and manage user details and profile information.
+          </DialogDescription>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 flex-1 overflow-hidden">

@@ -12,6 +12,7 @@ import {
     CalendarDays,
     CheckCircle2,
     ClipboardCheck,
+    Github,
     Loader2,
     ShieldCheck,
     TrendingUp,
@@ -233,6 +234,7 @@ export default function Home() {
                                 <ArrowRight className="h-3.5 w-3.5" />
                             </Button>
                         </Link>
+
                     </header>
 
                     {/* Hero Content */}
@@ -370,26 +372,105 @@ export default function Home() {
                         </div>
                     </div>
                 </section>
+
+                {/* ── µLearn Section ── */}
+                <section>
+                    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+                        {/* Decorative glow */}
+                        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
+                        <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-primary/5 blur-2xl" />
+
+                        <div className="relative grid gap-6 sm:gap-8 lg:grid-cols-[auto_1fr] lg:items-center">
+                            <div className="space-y-2 sm:space-y-3">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                                    Powered by Community
+                                </p>
+                                <h3 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl sm:text-3xl">
+                                    A Project by µLearn UCEK
+                                </h3>
+                                <p className="text-sm text-muted-foreground sm:text-base sm:max-w-2xl">
+                                    This Academic Management System is a testament to the power of collaborative
+                                    learning and an open source initiative proudly developed by the student community at µLearn UCEK.
+                                </p>
+                                <div className="pt-2">
+                                    <a href="https://mulearn.uck.ac.in" target="_blank" rel="noopener noreferrer">
+                                        <Button
+                                            variant="outline"
+                                            className="border-border/60 bg-card/50 text-foreground backdrop-blur-sm hover:bg-card/80"
+                                        >
+                                            Explore µLearn
+                                            <ArrowRight className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </main>
 
             {/* ── Footer ── */}
             <footer className="border-t border-border bg-card">
-                <div className="mx-auto max-w-7xl px-4 py-4 sm:px-8 lg:px-12">
+                <div className="mx-auto max-w-7xl px-4 py-5 sm:px-8 lg:px-12">
                     {/* Mobile: stacked, centered */}
-                    <div className="flex flex-col items-center gap-1 text-center sm:hidden">
-                        <span className="text-xs font-medium text-foreground">AMS — UCEK</span>
-                        <span className="text-[11px] text-muted-foreground">University College of Engineering, Kariavattom</span>
-                        <span className="text-[11px] text-muted-foreground">© {new Date().getFullYear()} UCEK. All rights reserved.</span>
-                    </div>
-                    {/* Desktop: single row, space-between */}
-                    <div className="hidden sm:flex items-center justify-between gap-4">
+                    <div className="flex flex-col items-center gap-2 text-center sm:hidden">
                         <div className="flex items-center gap-3">
-                            <Logo className="h-7 w-7" />
-                            <span className="text-xs text-muted-foreground">
-                                AMS — University College of Engineering, Kariavattom
-                            </span>
+                            <a
+                                href="https://github.com/mulearnucek/ams-frontend"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                            >
+                                <Github className="h-3 w-3" />
+                                Frontend
+                            </a>
+                            <a
+                                href="https://github.com/mulearnucek/ams-backend"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                            >
+                                <Github className="h-3 w-3" />
+                                Backend
+                            </a>
                         </div>
-                        <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} UCEK. All rights reserved.</p>
+                        <span className="text-[11px] text-muted-foreground">© {new Date().getFullYear()} UCEK. All rights reserved.</span>
+                        <span className="text-[10px] text-muted-foreground/70">Made with passion by mulearn ucek</span>
+                    </div>
+                    {/* Desktop: two rows */}
+                    <div className="hidden sm:flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <Logo className="h-7 w-7" />
+                                <span className="text-xs text-muted-foreground">
+                                    AMS — University College of Engineering, Kariavattom
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <a
+                                    href="https://github.com/mulearnucek/ams-frontend"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                                >
+                                    <Github className="h-3.5 w-3.5" />
+                                    Frontend
+                                </a>
+                                <a
+                                    href="https://github.com/mulearnucek/ams-backend"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                                >
+                                    <Github className="h-3.5 w-3.5" />
+                                    Backend
+                                </a>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-border/50 pt-3">
+                            <p className="text-[11px] text-muted-foreground/70">Made with passion by mulearn ucek</p>
+                            <p className="text-[11px] text-muted-foreground">© {new Date().getFullYear()} UCEK. All rights reserved.</p>
+                        </div>
                     </div>
                 </div>
             </footer>
