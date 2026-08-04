@@ -202,7 +202,7 @@ export default function UsersPage() {
       let page = 1;
       const limit = 100;
       while (true) {
-        const payload: any = { role, page, limit, search: activeSearch || undefined };
+        const payload: any = { role, page, limit, search: activeSearch || undefined, full: true };
         if (selectedTab === "student" && selectedBatchId) payload.batch = selectedBatchId;
         const data = await listUsers(payload);
         allExportUsers.push(...data.users);
