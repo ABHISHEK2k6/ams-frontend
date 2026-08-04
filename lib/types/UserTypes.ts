@@ -120,7 +120,7 @@ export interface UpdateUserData {
   /** Role-specific data sent as a flat profile object */
   profile?: Partial<
     StudentProfile &
-      StaffProfile & { relation?: ParentRelation; childID?: string }
+      StaffProfile & { relation?: ParentRelation; child_candidate_code?: string }
   >;
 }
 
