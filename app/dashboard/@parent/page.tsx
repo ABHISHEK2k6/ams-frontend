@@ -8,6 +8,7 @@ import NotificationsList from "@/components/student/notifications-list";
 import { type SubjectAttendanceStats } from "@/lib/api/attendance-stats";
 import { getStoredReadIds, markNotificationRead, type NotificationRecord } from "@/lib/api/notification";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";

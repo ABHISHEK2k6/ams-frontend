@@ -24,6 +24,7 @@ import {
 import Logo from "@/components/logo";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/appshell/theme_toggle";
 
 type PreviewItem = {
     title: string;
@@ -196,8 +197,8 @@ export default function Home() {
                     priority
                     className="object-cover"
                 />
-                {/* Dark overlay matching dashboard bg */}
-                <div className="absolute inset-0 bg-background/85 dark:bg-background/90" />
+                {/* Overlay matching dashboard bg — lighter at the top where the campus photo should read through, more opaque toward the text zone for legibility. A flat white wash at high opacity visually erases a photo far more than the same opacity in dark mode, so the light-mode stops are intentionally lower. */}
+                <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background/92 dark:from-background/70 dark:via-background/88 dark:to-background/95" />
                 {/* Subtle radial glow using primary color */}
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,oklch(0.65_0.25_292.717_/_0.15),transparent_55%),radial-gradient(ellipse_at_bottom_left,oklch(0.65_0.25_292.717_/_0.08),transparent_50%)]" />
                 {/* Grid pattern overlay */}
@@ -228,12 +229,15 @@ export default function Home() {
                                 </div>
                             </div>
                         </div>
-                        <Link href="/signin">
-                            <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
-                                Sign In
-                                <ArrowRight className="h-3.5 w-3.5" />
-                            </Button>
-                        </Link>
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            <ThemeToggle />
+                            <Link href="/signin">
+                                <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
+                                    Sign In
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                </Button>
+                            </Link>
+                        </div>
 
                     </header>
 

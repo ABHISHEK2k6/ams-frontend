@@ -4,10 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -28,11 +26,18 @@ import {
   Megaphone,
   Cpu,
   ChevronDown,
-  Check
+  Check,
+  Search,
+  MoreVertical,
+  Trash2,
+  MailOpen,
+  CheckCheck,
+  Inbox
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDistanceToNow } from "date-fns";
 import { listBatches, type Batch } from "@/lib/api/batch";
 import {
   createNotification,
@@ -40,6 +45,7 @@ import {
   getStoredReadIds,
   listMyNotifications,
   markNotificationRead,
+  markNotificationUnread,
   type NotificationRecord
 } from "@/lib/api/notification";
 import { useAuth } from "@/lib/auth-context";
@@ -155,6 +161,23 @@ const getTypeBadge = (typeValue: string) => {
   return <Badge className="bg-blue-500/10 text-blue-700">{label}</Badge>;
 };
 
+const TYPE_ICON_META: Record<string, { icon: typeof Megaphone; iconClass: string; bgClass: string }> = {
+  general: { icon: Megaphone, iconClass: "text-blue-600 dark:text-blue-400", bgClass: "bg-blue-500/10" },
+  alert: { icon: AlertOctagon, iconClass: "text-amber-600 dark:text-amber-400", bgClass: "bg-amber-500/10" },
+  academic: { icon: GraduationCap, iconClass: "text-indigo-600 dark:text-indigo-400", bgClass: "bg-indigo-500/10" },
+  system: { icon: Cpu, iconClass: "text-purple-600 dark:text-purple-400", bgClass: "bg-purple-500/10" }
+};
+
+const getTypeIconMeta = (typeValue: string) => TYPE_ICON_META[mapTypeToUi(typeValue)] || TYPE_ICON_META.general;
+
+const PRIORITY_BAR_CLASS: Record<string, string> = {
+  High: "bg-red-500",
+  Medium: "bg-amber-500",
+  Low: "bg-emerald-500"
+};
+
+const getPriorityBarClass = (priority: string) => PRIORITY_BAR_CLASS[priority] || PRIORITY_BAR_CLASS.Low;
+
 const getNotificationCreatedTime = (createdAt?: string, id?: string) => {
   if (createdAt) {
     const createdTime = new Date(createdAt).getTime();
@@ -210,6 +233,8 @@ export default function NotificationsPage() {
   const [activeNotification, setActiveNotification] = useState<UiNotification | null>(null);
   const [notificationToDelete, setNotificationToDelete] = useState<UiNotification | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const canCreateNotification = user?.role === "teacher";
   const [formState, setFormState] = useState({
     targetGroup: "batch",
@@ -273,6 +298,23 @@ export default function NotificationsPage() {
     });
   }, [notifications]);
 
+  const unreadCount = useMemo(
+    () => notifications.filter((notification) => !readIds.includes(notification.id)).length,
+    [notifications, readIds]
+  );
+
+  const filteredNotifications = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return sortedNotifications.filter((notification) => {
+      if (activeTab === "unread" && readIds.includes(notification.id)) return false;
+      if (!query) return true;
+      return (
+        notification.title.toLowerCase().includes(query) ||
+        notification.message.toLowerCase().includes(query)
+      );
+    });
+  }, [sortedNotifications, activeTab, readIds, searchQuery]);
+
   useEffect(() => {
     if (!notificationsEnabled) {
       window.location.replace("/dashboard");
@@ -292,13 +334,25 @@ export default function NotificationsPage() {
     markNotificationRead(id, user?._id);
   };
 
+  const handleMarkUnread = (id: string) => {
+    setReadIds((prev) => prev.filter((readId) => readId !== id));
+    markNotificationUnread(id, user?._id);
+  };
+
   const handleMarkAllRead = () => {
     const allIds = notifications.map((notification) => notification.id);
     allIds.forEach((id) => markNotificationRead(id, user?._id));
     setReadIds((prev) => Array.from(new Set([...prev, ...allIds])));
   };
 
-  const hasUnread = notifications.some((notification) => !readIds.includes(notification.id));
+  const hasUnread = unreadCount > 0;
+
+  const handleOpenNotification = (notification: UiNotification) => {
+    setActiveNotification(notification);
+    if (!readIds.includes(notification.id)) {
+      handleMarkRead(notification.id);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -365,18 +419,55 @@ export default function NotificationsPage() {
 
 
   return (
-    <div className="container mx-auto p-4 md:p-6 pb-20 md:pb-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Notifications</h1>
+    <div className="container mx-auto max-w-3xl p-4 md:p-6 pb-20 md:pb-6 space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <Bell className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold leading-tight sm:text-2xl">Notifications</h1>
+            <p className="text-xs text-muted-foreground">
+              {unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up"}
+            </p>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           {canCreateNotification && (
-            <Button size="sm" onClick={() => setIsCreateOpen((s) => !s)}>
+            <Button size="sm" onClick={() => setIsCreateOpen((s) => !s)} className="flex-1 sm:flex-none">
               {isCreateOpen ? "Close" : "Create"}
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={handleMarkAllRead} disabled={!hasUnread}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleMarkAllRead}
+            disabled={!hasUnread}
+            className="flex-1 gap-1.5 sm:flex-none"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
             Mark all read
           </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "all" | "unread")}>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="unread">
+              Unread{unreadCount > 0 ? ` (${unreadCount})` : ""}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="relative sm:w-64">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search notifications"
+            className="h-9 pl-8 text-sm"
+          />
         </div>
       </div>
 
@@ -723,115 +814,141 @@ export default function NotificationsPage() {
         </Dialog>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5" />
-            Inbox
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
+      <div>
+        {loading ? (
+          <div className="space-y-2.5">
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {error}
             </div>
-          ) : error ? (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                {error}
-              </div>
-              <Button variant="outline" size="sm" className="mt-3" onClick={handleRetry}>
-                Retry
+            <Button variant="outline" size="sm" className="mt-3" onClick={handleRetry}>
+              Retry
+            </Button>
+          </div>
+        ) : filteredNotifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center text-muted-foreground">
+            {searchQuery || activeTab === "unread" ? (
+              <MailOpen className="mb-3 h-10 w-10 opacity-40" />
+            ) : (
+              <Inbox className="mb-3 h-10 w-10 opacity-40" />
+            )}
+            <p className="text-sm font-medium">
+              {searchQuery
+                ? "No notifications match your search"
+                : activeTab === "unread"
+                ? "You're all caught up"
+                : "No notifications yet"}
+            </p>
+            {searchQuery && (
+              <Button variant="link" size="sm" className="mt-1" onClick={() => setSearchQuery("")}>
+                Clear search
               </Button>
-            </div>
-          ) : sortedNotifications.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Bell className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No notifications yet</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sortedNotifications.map((notification) => {
-                const isRead = readIds.includes(notification.id);
-                return (
-                  <div
-                    key={notification.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setActiveNotification(notification)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setActiveNotification(notification);
-                      }
-                    }}
-                    className={`rounded-lg border p-4 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                      isRead ? "border-border bg-muted/20" : "border-primary/30 bg-primary/5"
-                    }`}
-                  >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold truncate" title={notification.title}>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {filteredNotifications.map((notification) => {
+              const isRead = readIds.includes(notification.id);
+              const typeMeta = getTypeIconMeta(notification.notificationType);
+              const TypeIcon = typeMeta.icon;
+              return (
+                <div
+                  key={notification.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleOpenNotification(notification)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleOpenNotification(notification);
+                    }
+                  }}
+                  className={`group relative overflow-hidden rounded-xl border pl-4 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                    isRead ? "border-border bg-card hover:bg-muted/40" : "border-primary/20 bg-primary/5 hover:bg-primary/10"
+                  }`}
+                >
+                  <span
+                    className={`absolute inset-y-0 left-0 w-1 ${getPriorityBarClass(notification.priorityLevel)}`}
+                  />
+                  <div className="flex items-start gap-3 py-3.5 pr-3">
+                    <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${typeMeta.bgClass}`}>
+                      <TypeIcon className={`h-4 w-4 ${typeMeta.iconClass}`} />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          {!isRead && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+                          <h3 className="truncate text-sm font-semibold" title={notification.title}>
                             {notification.title}
                           </h3>
-                          {getPriorityBadge(notification.priorityLevel)}
-                          {getTypeBadge(notification.notificationType)}
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-1" title={notification.message}>
-                          {notification.message}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className={isRead ? "text-emerald-600" : "text-amber-600"}>
-                            {isRead ? "Read" : "Unread"}
-                          </span>
-                          {notification.targetGroup && (
-                            <>
-                              <span>•</span>
-                              <span>Group: {notification.targetGroup}</span>
-                            </>
-                          )}
-                        </div>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          {notification.createdAt
+                            ? formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })
+                            : ""}
+                        </span>
                       </div>
-                      <div className="flex flex-row flex-wrap items-center gap-2 md:flex-col md:items-end">
-                        {!isRead && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full justify-center md:w-auto"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleMarkRead(notification.id);
-                            }}
-                          >
-                            Mark as Read
-                          </Button>
-                        )}
-                        {canCreateNotification && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="w-full justify-center text-destructive md:w-auto"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setNotificationToDelete(notification);
-                            }}
-                          >
-                            Delete
-                          </Button>
+                      <p className="line-clamp-2 text-sm text-muted-foreground" title={notification.message}>
+                        {notification.message}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {getPriorityBadge(notification.priorityLevel)}
+                        {getTypeBadge(notification.notificationType)}
+                        {notification.targetGroup && (
+                          <span className="text-[11px] text-muted-foreground">Group: {notification.targetGroup}</span>
                         )}
                       </div>
                     </div>
+                    <DropdownMenu modal={false}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(event) => event.stopPropagation()}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">Notification actions</span>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44 z-150" onClick={(event) => event.stopPropagation()}>
+                        {isRead ? (
+                          <DropdownMenuItem onSelect={() => handleMarkUnread(notification.id)} className="text-xs cursor-pointer">
+                            <MailOpen className="h-3.5 w-3.5" />
+                            Mark as unread
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onSelect={() => handleMarkRead(notification.id)} className="text-xs cursor-pointer">
+                            <Check className="h-3.5 w-3.5" />
+                            Mark as read
+                          </DropdownMenuItem>
+                        )}
+                        {canCreateNotification && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onSelect={() => setNotificationToDelete(notification)}
+                              className="text-xs cursor-pointer text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       {notificationToDelete && (
         <Dialog open={!!notificationToDelete} onOpenChange={(open) => !open && setNotificationToDelete(null)}>
           <DialogContent>
