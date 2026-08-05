@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Check, X, RotateCcw, Save } from "lucide-react";
 import { getAttendanceSessionById, type AttendanceSession, type EmbeddedAttendanceRecord } from "@/lib/api/attendance-session";
@@ -61,7 +61,10 @@ function SwipeCard({
   const behindY = stackIndex * 12;
 
   const candidateCode = (student.profile as any)?.candidate_code || (student.profile as any)?.adm_number || "";
-  const lastThreeDigits = candidateCode.slice(-3) || `${student.first_name?.charAt(0) ?? ""}${student.last_name?.charAt(0) ?? ""}`.toUpperCase();
+  const codeTail = candidateCode.slice(-3);
+  const lastThreeDigits = codeTail
+    ? (/^\d+$/.test(codeTail) ? String(parseInt(codeTail, 10)) : codeTail)
+    : `${student.first_name?.charAt(0) ?? ""}${student.last_name?.charAt(0) ?? ""}`.toUpperCase();
 
   const handleDragEnd = (_: any, info: { offset: { x: number; y: number }; velocity: { x: number } }) => {
     if (!isTop) return;
@@ -169,7 +172,7 @@ function SwipeCard({
         <div className="flex-1 flex items-center justify-center max-sm:py-1">
           <div className="relative flex items-center justify-center">
             <div
-              className="absolute w-[64px] h-[64px] rounded-full sm:w-[76px] sm:h-[76px]"
+              className="absolute w-16 h-16 rounded-full sm:w-[76px] sm:h-[76px]"
               style={{
                 background: `radial-gradient(circle, ${CARD_ACCENT}30 0%, transparent 70%)`,
                 filter: "blur(16px)",
@@ -229,6 +232,12 @@ function SwipeAttendanceContent() {
   const [lastSwipeDir, setLastSwipeDir] = useState<string | null>(null);
   const [restoringCardId, setRestoringCardId] = useState<string | null>(null);
   const [programmaticDir, setProgrammaticDir] = useState<string | null>(null);
+  // Guards against rapid-fire marking: triggerButtonSwipe delays the actual state
+  // mutation by 280ms for the color/exit animation, and since currentIndex only
+  // changes once that timeout fires, a second click within that window used to see
+  // the same stale currentIndex, queue a second mutation for the *same* student, and
+  // double-decrement currentIndex — skipping a student and corrupting the counts.
+  const isBusyRef = useRef(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -259,16 +268,18 @@ function SwipeAttendanceContent() {
           page++;
         } while (page <= totalPages);
 
-        // Sort allStudents by roll number
+        // Sort allStudents by candidate code
         allStudents.sort((a, b) => {
           const profileA = (a.profile as any) || {};
           const profileB = (b.profile as any) || {};
-          const rollA = String(profileA.adm_number || profileA.candidate_code || '').trim();
-          const rollB = String(profileB.adm_number || profileB.candidate_code || '').trim();
+          const codeA = String(profileA.candidate_code || '').trim();
+          const codeB = String(profileB.candidate_code || '').trim();
 
-          if (rollA && rollB) {
-            return rollA.localeCompare(rollB, undefined, { numeric: true, sensitivity: 'base' });
+          if (codeA && codeB) {
+            return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
           }
+          if (codeA) return -1;
+          if (codeB) return 1;
           return (a.name || '').localeCompare(b.name || '');
         });
 
@@ -296,7 +307,9 @@ function SwipeAttendanceContent() {
   const canGoBack = currentIndex < students.length - 1;
   const canSwipe = currentIndex >= 0;
 
-  const handleSwipe = useCallback((direction: "left" | "right") => {
+  // The actual state mutation for marking a student, shared by both the drag-release
+  // path and the button path. Callers are responsible for the isBusyRef lock.
+  const performSwipe = useCallback((direction: "left" | "right") => {
     if (currentIndex < 0) return;
     const currentStudent = students[currentIndex];
     if (!currentStudent) return;
@@ -311,20 +324,35 @@ function SwipeAttendanceContent() {
       return [...existing, { studentId, status }];
     });
     setProgrammaticDir(null);
-    setCurrentIndex((prev) => prev - 1);
+    // Clamped so a stray extra call can never push the index past -1, which would
+    // make both the card area and the "all done" dialog fail their render checks
+    // and leave a blank screen.
+    setCurrentIndex((prev) => Math.max(prev - 1, -1));
   }, [currentIndex, students, setStudentStatus]);
 
-  const triggerButtonSwipe = async (dir: "left" | "right") => {
-    if (!canSwipe) return;
+  // Drag-release path: synchronous, so acquire and release the lock around the same tick.
+  const handleSwipe = useCallback((direction: "left" | "right") => {
+    if (isBusyRef.current) return;
+    isBusyRef.current = true;
+    performSwipe(direction);
+    isBusyRef.current = false;
+  }, [performSwipe]);
+
+  const triggerButtonSwipe = (dir: "left" | "right") => {
+    if (!canSwipe || isBusyRef.current) return;
+    // Lock immediately (not inside the timeout) so a rapid second click during the
+    // 280ms animation delay is ignored instead of queuing a second stale mutation.
+    isBusyRef.current = true;
     setProgrammaticDir(dir);
     // Allow state to trigger card color shift & animation before completing swipe
     setTimeout(() => {
-      handleSwipe(dir);
+      performSwipe(dir);
+      isBusyRef.current = false;
     }, 280);
   };
 
   const goBack = async () => {
-    if (!canGoBack) return;
+    if (!canGoBack || isBusyRef.current) return;
     const newIndex = currentIndex + 1;
     const restoredStudent = students[newIndex];
     setRestoringCardId(restoredStudent._id!);
@@ -332,7 +360,12 @@ function SwipeAttendanceContent() {
     setMarkedRecords((prev) => {
       const newArray = [...prev];
       const removed = newArray.pop();
-      if (removed) setStudentStatus(removed.studentId, undefined as any);
+      if (removed) {
+        setStudentStatus(removed.studentId, undefined as any);
+        // Restore from whichever side the card was originally marked to, not the side of
+        // whatever swipe happened most recently — those can differ once you undo more than once.
+        setLastSwipeDir(removed.status === "present" ? "right" : "left");
+      }
       return newArray;
     });
     setTimeout(() => setRestoringCardId(null), 500);
@@ -401,7 +434,7 @@ function SwipeAttendanceContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
+      <div className="min-h-full flex flex-col items-center justify-center gap-6 p-6">
         <Skeleton className="h-10 w-52" />
         <Skeleton className="h-[440px] w-full max-w-sm rounded-[28px]" />
       </div>
@@ -410,7 +443,7 @@ function SwipeAttendanceContent() {
 
   if (!session || students.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      <div className="min-h-full flex flex-col items-center justify-center p-6">
         <h2 className="text-xl font-bold mb-4">No Students Found</h2>
         <Button onClick={() => window.location.href = `/dashboard/attendance/session/${sessionId}`}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
@@ -420,17 +453,17 @@ function SwipeAttendanceContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col gap-2 pt-3 pb-2 px-3 md:px-8 select-none overflow-hidden overscroll-none max-sm:pt-2 max-sm:pb-1 max-sm:px-2">
+    <div className="h-full min-h-full flex flex-col gap-2 pt-3 pb-2 px-3 md:px-8 select-none overflow-hidden overscroll-none max-sm:pt-2 max-sm:pb-1 max-sm:px-2">
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
         {/* Header */}
-        <div className="flex items-center gap-3 max-sm:gap-2">
-          <Button variant="ghost" size="icon" onClick={() => window.location.href = `/dashboard/attendance/session/${sessionId}`}>
+        <div className="flex items-center gap-3 max-sm:gap-2 min-w-0">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => window.location.href = `/dashboard/attendance/session/${sessionId}`}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Swipe Attendance</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight max-sm:text-lg truncate">Swipe Attendance</h1>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
               {session.subject.name} · {session.batch?.name || "N/A"}
             </p>
           </div>
@@ -455,51 +488,18 @@ function SwipeAttendanceContent() {
         </div>
       </div>
 
-      {/* Card area */}
-      <div className="flex-1 flex flex-col items-center justify-start max-w-[88%] sm:max-w-[20rem] mx-auto w-full max-sm:max-w-[96%] max-sm:justify-start md:pt-0 lg:pt-0 md:-mt-8 lg:-mt-10">
+      {/* Card area — a single flex column (stack, buttons, progress) so leftover
+          vertical space is distributed by justify-center instead of piling up as a
+          gap after the buttons, and min-h-0 lets the stack shrink on short mobile
+          viewports instead of pushing the progress bar out past the page's
+          overflow-hidden bound. */}
+      {currentIndex >= 0 && (
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center max-w-[88%] sm:max-w-[20rem] md:max-w-sm lg:max-w-md mx-auto w-full max-sm:max-w-[96%] -mt-6 sm:-mt-4 md:-mt-8 lg:-mt-10">
 
-        {/* Done state */}
-        <AnimatePresence>
-          {currentIndex === -1 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={SMOOTH_SPRING}
-              className="w-full"
-            >
-              <Card className="w-full text-center shadow-2xl border">
-                <CardHeader>
-                  <CardTitle className="text-2xl">All Done 🎉</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl p-5" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.2)" }}>
-                      <p className="text-4xl font-black" style={{ color: "#10b981" }}>{presentCount}</p>
-                      <p className="text-xs text-muted-foreground mt-1 font-medium">Present</p>
-                    </div>
-                    <div className="rounded-2xl p-5" style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                      <p className="text-4xl font-black text-red-500">{absentCount}</p>
-                      <p className="text-xs text-muted-foreground mt-1 font-medium">Absent</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2.5">
-                    <Button className="w-full h-11" onClick={handleSubmit} disabled={submitting}>
-                      {submitting ? "Saving..." : <><Save className="mr-2 h-4 w-4" /> Submit Attendance</>}
-                    </Button>
-                    <Button variant="outline" className="w-full h-11" onClick={goBack} disabled={submitting}>
-                      <RotateCcw className="mr-2 h-4 w-4" /> Review Last Card
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Card Stack */}
-        {currentIndex >= 0 && (
-          <div className="relative w-full max-sm:h-[42svh] sm:h-[320px]" style={{ isolation: "isolate", zIndex: 40 }}>
+          {/* Card Stack — nudged up on its own via transform (doesn't affect layout
+              flow) so only the cards move into the empty space above, without
+              shifting the buttons/progress bar that sit below them. */}
+          <div className="relative w-full min-h-[170px] max-sm:h-[40svh] sm:h-80 md:h-[360px] lg:h-[400px] max-sm:-translate-y-8" style={{ isolation: "isolate", zIndex: 40 }}>
             {students.map((student, idx) => {
               if (idx > currentIndex) return null;
               const stackIndex = currentIndex - idx;
@@ -524,15 +524,13 @@ function SwipeAttendanceContent() {
               );
             })}
           </div>
-        )}
 
-        {/* Action buttons */}
-        {currentIndex >= 0 && (
+          {/* Action buttons */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, ...SMOOTH_SPRING }}
-            className="flex items-center justify-center gap-4 mt-4 pb-3 max-sm:gap-3 max-sm:mt-4"
+            className="flex items-center justify-center gap-4 mt-4 shrink-0 max-sm:gap-3 max-sm:mt-3"
           >
             <motion.button
               whileTap={{ scale: 0.86 }}
@@ -579,27 +577,60 @@ function SwipeAttendanceContent() {
               <Check className="h-7 w-7" />
             </motion.button>
           </motion.div>
-        )}
-      </div>
 
-      {/* Progress bar */}
-      {currentIndex >= 0 && (
-        <div className="mt-2 w-full max-w-sm mx-auto max-sm:mt-2">
-          <div className="flex justify-between text-xs text-muted-foreground mb-2">
-            <span>{students.length - 1 - currentIndex} marked</span>
-            <span>{students.length} total</span>
-          </div>
-          <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: "rgba(128,128,128,0.12)" }}>
-            <motion.div
-              className="h-full rounded-full"
-              style={{ background: "linear-gradient(90deg, #10b981, #6ee7b7)" }}
-              initial={{ width: 0 }}
-              animate={{ width: `${((students.length - 1 - currentIndex) / students.length) * 100}%` }}
-              transition={SMOOTH_SPRING}
-            />
+          {/* Progress bar — kept inside the same column, directly under the buttons */}
+          <div className="w-full shrink-0 mt-3 max-sm:mt-2.5 md:mt-2 lg:mt-2">
+            <div className="flex justify-between text-xs text-muted-foreground mb-2">
+              <span>{students.length - 1 - currentIndex} marked</span>
+              <span>{students.length} total</span>
+            </div>
+            <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: "rgba(128,128,128,0.12)" }}>
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: "linear-gradient(90deg, #10b981, #6ee7b7)" }}
+                initial={{ width: 0 }}
+                animate={{ width: `${((students.length - 1 - currentIndex) / students.length) * 100}%` }}
+                transition={SMOOTH_SPRING}
+              />
+            </div>
           </div>
         </div>
       )}
+
+      {/* Done dialog — a real modal (not dismissible by outside click/Escape) so it
+          can't disappear and leave the page blank; only Submit or Review can close it. */}
+      <Dialog open={currentIndex === -1} onOpenChange={() => {}}>
+        <DialogContent
+          showCloseButton={false}
+          onInteractOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          className="sm:max-w-md text-center"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-center">All Done 🎉</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl p-5" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                <p className="text-4xl font-black" style={{ color: "#10b981" }}>{presentCount}</p>
+                <p className="text-xs text-muted-foreground mt-1 font-medium">Present</p>
+              </div>
+              <div className="rounded-2xl p-5" style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                <p className="text-4xl font-black text-red-500">{absentCount}</p>
+                <p className="text-xs text-muted-foreground mt-1 font-medium">Absent</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <Button className="w-full h-11" onClick={handleSubmit} disabled={submitting}>
+                {submitting ? "Saving..." : <><Save className="mr-2 h-4 w-4" /> Submit Attendance</>}
+              </Button>
+              <Button variant="outline" className="w-full h-11" onClick={goBack} disabled={submitting}>
+                <RotateCcw className="mr-2 h-4 w-4" /> Review Last Card
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
