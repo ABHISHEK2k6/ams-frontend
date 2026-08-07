@@ -299,7 +299,7 @@ export default function SessionAttendanceMethodsPage() {
             <div className="space-y-3">
               <div>
                 <CardTitle className="text-xl md:text-2xl">{session.subject.name}</CardTitle>
-                <p className="text-muted-foreground mt-1">{session.subject.code}</p>
+                <p className="text-muted-foreground mt-1">{session.subject.subject_code}</p>
               </div>
               <Badge variant={getSessionTypeBadge(session.session_type)} className="w-fit">
                 {session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}

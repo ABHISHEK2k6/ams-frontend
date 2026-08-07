@@ -124,7 +124,7 @@ export default function TeacherHome() {
                         type: "info",
                         postedBy: user.first_name || user.name || "Teacher",
                         postedAt: new Date(session.createdAt || session.start_time),
-                        targetClass: session.subject.code,
+                        targetClass: session.subject.subject_code,
                     }));
 
                 setAttendanceData(overviewData);

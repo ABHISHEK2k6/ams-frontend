@@ -5,8 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -15,97 +13,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calendar, Clock, Users, Trash2, Filter, ChevronDown, Share2 } from "lucide-react";
+import { Calendar, Clock, Trash2, ChevronDown, ChevronRight, Share2, Folder, BookOpen, Archive } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
-import { listAttendanceSessions, deleteAttendanceSessionById, getRecentUniqueSessions, type AttendanceSession } from "@/lib/api/attendance-session";
+import { listAttendanceSessions, deleteAttendanceSessionById, type AttendanceSession } from "@/lib/api/attendance-session";
 import CreateClassDialog from "./create-class-dialog";
 import { toast } from "sonner";
 import { ShareAttendanceDialog } from "./share-attendance-dialog";
+import { cn } from "@/lib/utils";
 
-type ClassFilterItem = {
-  batch: {
-    _id: string;
-    name: string;
-  };
-  subject: {
-    _id: string;
-    name: string;
-  };
-};
-
-const useIsMobile = (breakpoint = 768) => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < breakpoint);
-    };
-
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, [breakpoint]);
-
-  return isMobile;
+type ClassGroup = {
+  groupKey: string;
+  subjectName: string;
+  subjectCode: string;
+  subjectSem: string;
+  batchName: string;
+  admYear: number | null;
+  archived: boolean;
+  sessions: AttendanceSession[];
 };
 
 export default function AttendancePage() {
   const router = useRouter();
   const { user } = useAuth();
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
-  const [uniqueClasses, setUniqueClasses] = useState<ClassFilterItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogSession, setDeleteDialogSession] = useState<AttendanceSession | null>(null);
   const [shareDialogSession, setShareDialogSession] = useState<AttendanceSession | null>(null);
-  const [selectedClass, setSelectedClass] = useState<string>("all");
-  const [selectedYear, setSelectedYear] = useState<string>("all");
-  const [semesterByGroupKey, setSemesterByGroupKey] = useState<Record<string, string>>({});
-  const isMobile = useIsMobile();
-
-  const extractYearFromBatch = (batch: AttendanceSession["batch"]): string | null => {
-    const normalizeTwoDigitYear = (yy: string) => {
-      const n = Number(yy);
-      const fullYear = n <= 49 ? 2000 + n : 1900 + n;
-      return String(fullYear);
-    };
-
-    const raw = batch as unknown as {
-      year?: number;
-      adm_year?: number;
-      id?: string;
-      code?: string;
-      name?: string;
-    };
-
-    if (raw.year) return String(raw.year);
-    if (raw.adm_year) return String(raw.adm_year);
-
-    const idOrCode = raw.id || raw.code;
-    const yy = idOrCode?.match(/^(\d{2})/)?.[1];
-    if (yy) {
-      return normalizeTwoDigitYear(yy);
-    }
-
-    // Handles forms like CSE24A or IT24 where year appears before a trailing letter.
-    const yyFromIdOrCodeAnywhere = idOrCode?.match(/(\d{2})(?=[A-Za-z])/i)?.[1];
-    if (yyFromIdOrCodeAnywhere) {
-      return normalizeTwoDigitYear(yyFromIdOrCodeAnywhere);
-    }
-
-    const yearFromName = raw.name?.match(/(20\d{2})/)?.[1];
-    if (yearFromName) return yearFromName;
-
-    // Handles forms like 24CSE-A in batch name.
-    const yyFromNamePrefix = raw.name?.trim().match(/^(\d{2})(?=[A-Za-z])/i)?.[1];
-    if (yyFromNamePrefix) {
-      return normalizeTwoDigitYear(yyFromNamePrefix);
-    }
-
-    return null;
-  };
+  const [expandedYears, setExpandedYears] = useState<number[]>([]);
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.email) {
@@ -114,32 +51,6 @@ export default function AttendancePage() {
       setLoading(false);
     }
   }, [user?.email]);
-
-  const buildUniqueClassesFromSessions = (teacherSessions: AttendanceSession[]): ClassFilterItem[] => {
-    const map = new Map<string, ClassFilterItem>();
-
-    teacherSessions.forEach((session) => {
-      const key = `${session.batch._id}-${session.subject._id}`;
-      if (!map.has(key)) {
-        map.set(key, {
-          batch: {
-            _id: session.batch._id,
-            name: session.batch.name,
-          },
-          subject: {
-            _id: session.subject._id,
-            name: session.subject.name,
-          },
-        });
-      }
-    });
-
-    return Array.from(map.values()).sort((a, b) => {
-      const subjectCompare = a.subject.name.localeCompare(b.subject.name);
-      if (subjectCompare !== 0) return subjectCompare;
-      return a.batch.name.localeCompare(b.batch.name);
-    });
-  };
 
   const filterTeacherSessions = (allSessions: AttendanceSession[]): AttendanceSession[] => {
     const currentUserId = user?._id;
@@ -202,25 +113,6 @@ export default function AttendancePage() {
     return filtered;
   };
 
-  const loadSemesterMap = async () => {
-    try {
-      const recent = await getRecentUniqueSessions();
-      const map: Record<string, string> = {};
-
-      recent.forEach((item) => {
-        const key = `${item.subject._id}-${item.batch._id}`;
-        if (!map[key]) {
-          map[key] = item.subject.sem || "N/A";
-        }
-      });
-
-      setSemesterByGroupKey(map);
-    } catch (error) {
-      console.warn("Failed to load semester map:", error);
-      setSemesterByGroupKey({});
-    }
-  };
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -235,10 +127,7 @@ export default function AttendancePage() {
         page += 1;
       } while (page <= totalPages);
 
-      const teacherSessions = filterTeacherSessions(allSessions);
-      setSessions(teacherSessions);
-      setUniqueClasses(buildUniqueClassesFromSessions(teacherSessions));
-      await loadSemesterMap();
+      setSessions(filterTeacherSessions(allSessions));
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -259,96 +148,91 @@ export default function AttendancePage() {
         page += 1;
       } while (page <= totalPages);
 
-      const teacherSessions = filterTeacherSessions(allSessions);
-      setSessions(teacherSessions);
-      setUniqueClasses(buildUniqueClassesFromSessions(teacherSessions));
-      await loadSemesterMap();
+      setSessions(filterTeacherSessions(allSessions));
     } catch (error) {
       console.error("Failed to load sessions:", error);
     }
   };
 
-  const getFilteredSessions = () => {
-    let filtered = sessions;
-
-    if (selectedClass !== "all") {
-      const [batchId, subjectId] = selectedClass.split("-");
-      filtered = filtered.filter(
-        (session) => session.batch._id === batchId && session.subject._id === subjectId
-      );
-    }
-
-    if (selectedYear !== "all") {
-      filtered = filtered.filter((session) => {
-        const year = extractYearFromBatch(session.batch);
-        return year === selectedYear;
-      });
-    }
-
-    return filtered;
-  };
-
-  const filteredSessions = getFilteredSessions();
-
-  const availableYears = useMemo(() => {
-    const years = new Set<string>();
+  // Groups: one per (subject, batch) — the "class" a teacher actually thinks in terms of.
+  // A group's sessions always share one `archived` value, since a subject is tied to a
+  // fixed semester and gets archived as a whole once its batch advances past it.
+  const groups = useMemo(() => {
+    const map = new Map<string, ClassGroup>();
 
     sessions.forEach((session) => {
-      const year = extractYearFromBatch(session.batch);
-      if (year) years.add(year);
-    });
-
-    return Array.from(years).sort((a, b) => Number(b) - Number(a));
-  }, [sessions]);
-
-  const groupedSessions = useMemo(() => {
-    const groups = new Map<
-      string,
-      {
-        groupKey: string;
-        subjectName: string;
-        subjectCode: string;
-        subjectSem: string;
-        batchName: string;
-        sessions: AttendanceSession[];
-      }
-    >();
-
-    filteredSessions.forEach((session) => {
       const groupKey = `${session.subject._id}-${session.batch._id}`;
-      const existing = groups.get(groupKey);
+      const existing = map.get(groupKey);
 
       if (existing) {
         existing.sessions.push(session);
       } else {
-        groups.set(groupKey, {
+        map.set(groupKey, {
           groupKey,
           subjectName: session.subject.name,
-          subjectCode: session.subject.code,
-          subjectSem:
-            semesterByGroupKey[groupKey] ||
-            (session.subject as { sem?: string; semester?: string }).sem ||
-            (session.subject as { sem?: string; semester?: string }).semester ||
-            "N/A",
+          subjectCode: session.subject.subject_code ?? "",
+          subjectSem: session.subject.sem ?? session.sem ?? "N/A",
           batchName: session.batch?.name ?? "N/A",
+          admYear: session.batch?.adm_year ?? null,
+          archived: Boolean(session.archived),
           sessions: [session],
         });
       }
     });
 
-    return Array.from(groups.values())
-      .map((group) => ({
-        ...group,
-        sessions: [...group.sessions].sort(
-          (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
-        ),
-      }))
-      .sort((a, b) => {
+    return Array.from(map.values()).map((group) => ({
+      ...group,
+      sessions: [...group.sessions].sort(
+        (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+      ),
+    }));
+  }, [sessions]);
+
+  // Year -> groups, newest year first; groups within a year sorted by subject then batch.
+  const groupsByYear = useMemo(() => {
+    const map = new Map<number, ClassGroup[]>();
+    const unassigned: ClassGroup[] = [];
+
+    groups.forEach((group) => {
+      if (group.admYear == null) {
+        unassigned.push(group);
+        return;
+      }
+      const bucket = map.get(group.admYear) ?? [];
+      bucket.push(group);
+      map.set(group.admYear, bucket);
+    });
+
+    const sortGroups = (list: ClassGroup[]) =>
+      [...list].sort((a, b) => {
         const subjectCompare = a.subjectName.localeCompare(b.subjectName);
         if (subjectCompare !== 0) return subjectCompare;
         return a.batchName.localeCompare(b.batchName);
       });
-  }, [filteredSessions, semesterByGroupKey]);
+
+    const years = [...map.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([year, list]) => ({ year, groups: sortGroups(list) }));
+
+    return { years, unassigned: sortGroups(unassigned) };
+  }, [groups]);
+
+  // Default: expand the newest year and select its first class, so the page never
+  // opens on an empty detail pane.
+  useEffect(() => {
+    if (loading) return;
+    if (groupsByYear.years.length === 0) return;
+    setExpandedYears((prev) => (prev.length > 0 ? prev : [groupsByYear.years[0].year]));
+    setSelectedGroupKey((prev) => prev ?? groupsByYear.years[0].groups[0]?.groupKey ?? null);
+  }, [loading, groupsByYear]);
+
+  const toggleYear = (year: number) => {
+    setExpandedYears((prev) =>
+      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
+    );
+  };
+
+  const selectedGroup = groups.find((g) => g.groupKey === selectedGroupKey) ?? null;
 
   const handleDelete = async (sessionId: string) => {
     try {
@@ -370,6 +254,8 @@ export default function AttendancePage() {
     return variants[type as keyof typeof variants] || "default";
   };
 
+  const totalSessionCount = sessions.length;
+
   return (
     <div className="min-h-screen p-4 md:p-8 space-y-6">
       {/* Header */}
@@ -383,208 +269,218 @@ export default function AttendancePage() {
         <CreateClassDialog onClassCreated={loadSessions} />
       </div>
 
-      {/* Filter by Class */}
-      {!loading && uniqueClasses.length > 0 && (
-        <div className="flex items-center gap-1">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="flex text-sm font-medium">
-              {isMobile && selectedClass !== "all" ? "Filter" : "Filter by Class:"}
-            </span>
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : groups.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
+              <Calendar className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">No sessions found</h3>
+            <p className="text-muted-foreground mb-4">
+              Create a new class to start taking attendance
+            </p>
+            <CreateClassDialog onClassCreated={loadSessions} />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-col lg:flex-row rounded-lg border shadow-sm overflow-hidden bg-card">
+          {/* Sidebar: Admission Year -> Subject/Batch classes */}
+          <aside className="w-full lg:w-72 xl:w-80 shrink-0 border-b lg:border-b-0 lg:border-r bg-muted/10 p-4 space-y-1 lg:max-h-[calc(100vh-14rem)] lg:overflow-y-auto">
+            <h3 className="text-sm font-semibold px-2 mb-2 tracking-tight text-muted-foreground uppercase">
+              Your Classes
+            </h3>
+            {groupsByYear.years.map(({ year, groups: yearGroups }) => {
+              const isExpanded = expandedYears.includes(year);
+              return (
+                <div key={year} className="space-y-1">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start font-medium text-muted-foreground"
+                    onClick={() => toggleYear(year)}
+                  >
+                    {isExpanded ? <ChevronDown className="mr-1.5 h-4 w-4" /> : <ChevronRight className="mr-1.5 h-4 w-4" />}
+                    <Folder className="mr-2 h-4 w-4" /> {year} Batch
+                    <Badge variant="outline" className="ml-auto">{yearGroups.length}</Badge>
+                  </Button>
+                  {isExpanded && (
+                    <div className="ml-4 pl-3 border-l border-border/50 flex flex-col gap-1 my-1">
+                      {yearGroups.map((group) => (
+                        <Button
+                          key={group.groupKey}
+                          variant={selectedGroupKey === group.groupKey ? "secondary" : "ghost"}
+                          className="w-full justify-start h-auto py-2 text-left"
+                          onClick={() => setSelectedGroupKey(group.groupKey)}
+                        >
+                          <BookOpen className="mr-2 h-3.5 w-3.5 opacity-70 shrink-0 mt-0.5" />
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm truncate">{group.subjectName}</span>
+                            <span className="block text-xs text-muted-foreground truncate">{group.batchName}</span>
+                          </span>
+                          <span className="flex flex-col items-end gap-1 shrink-0 ml-2">
+                            <span className="text-[10px] text-muted-foreground">S{group.subjectSem}</span>
+                            {group.archived && <Archive className="h-3 w-3 text-muted-foreground" />}
+                          </span>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {groupsByYear.unassigned.length > 0 && (
+              <div className="space-y-1">
+                <div className="px-2 pt-2 text-xs font-medium text-muted-foreground uppercase">Other</div>
+                <div className="pl-1 flex flex-col gap-1">
+                  {groupsByYear.unassigned.map((group) => (
+                    <Button
+                      key={group.groupKey}
+                      variant={selectedGroupKey === group.groupKey ? "secondary" : "ghost"}
+                      className="w-full justify-start h-auto py-2 text-left"
+                      onClick={() => setSelectedGroupKey(group.groupKey)}
+                    >
+                      <BookOpen className="mr-2 h-3.5 w-3.5 opacity-70 shrink-0 mt-0.5" />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm truncate">{group.subjectName}</span>
+                        <span className="block text-xs text-muted-foreground truncate">{group.batchName}</span>
+                      </span>
+                      {group.archived && <Archive className="h-3 w-3 text-muted-foreground ml-2 shrink-0" />}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
+
+          {/* Detail pane: selected class's full session list */}
+          <div className="flex-1 min-w-0 flex flex-col bg-card">
+            {!selectedGroup ? (
+              <div className="flex-1 flex items-center justify-center p-12 text-center text-muted-foreground">
+                Select a class from the list to view its sessions.
+              </div>
+            ) : (
+              <>
+                <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-lg font-semibold truncate">{selectedGroup.subjectName}</h2>
+                      <Badge variant="outline">S{selectedGroup.subjectSem}</Badge>
+                      {selectedGroup.archived && (
+                        <Badge variant="secondary" className="gap-1">
+                          <Archive className="h-3 w-3" /> Past semester — read-only
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {selectedGroup.batchName}
+                      {selectedGroup.admYear ? ` · ${selectedGroup.admYear} Batch` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge variant="outline" className="text-base px-3 py-1">
+                      {selectedGroup.sessions.length} {selectedGroup.sessions.length === 1 ? "session" : "sessions"}
+                    </Badge>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        const subjectId = selectedGroup.sessions[0].subject._id;
+                        const batchId = selectedGroup.sessions[0].batch._id;
+                        router.push(`/dashboard/attendance/report/${subjectId}/${batchId}`);
+                      }}
+                    >
+                      View Report
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 overflow-x-auto">
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Time</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead className="hidden sm:table-cell">Duration</TableHead>
+                          <TableHead className="text-right"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedGroup.sessions.map((session) => (
+                          <TableRow
+                            key={session._id}
+                            className={cn(
+                              "hover:bg-muted/50 cursor-pointer",
+                              session.archived && "opacity-70"
+                            )}
+                            onClick={() => router.push(`/dashboard/attendance/session/${session._id}`)}
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-2 text-sm">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                <span>
+                                  {format(new Date(session.start_time), "MMM dd, hh:mm a")} -{" "}
+                                  {format(new Date(session.end_time), "hh:mm a")}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getSessionTypeBadge(session.session_type)}>
+                                {session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                              {session.hours_taken} {session.hours_taken === 1 ? "hour" : "hours"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Share"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShareDialogSession(session);
+                                  }}
+                                >
+                                  <Share2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Delete"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteDialogSession(session);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-          <Select value={selectedClass} onValueChange={setSelectedClass}>
-            <SelectTrigger className="sm:inline text-sm truncate">
-              <SelectValue placeholder="All Classes" />
-            </SelectTrigger>
-            <SelectContent className="w-full max-w-[95vw]">
-              <SelectItem value="all">All Classes</SelectItem>
-              {uniqueClasses.map((classItem) => {
-                const key = `${classItem.batch._id}-${classItem.subject._id}`;
-                return (
-                  <SelectItem key={key} value={key}>
-                    {classItem.subject.name} - {classItem.batch.name}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-          {selectedClass !== "all" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedClass("all")}
-            >
-              Clear Filter
-            </Button>
-          )}
         </div>
       )}
 
-      {/* Recent Sessions */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Recent Sessions</CardTitle>
-              <CardDescription className="mt-1">
-                {selectedClass === "all" 
-                  ? "All attendance sessions created by you" 
-                  : "Filtered by selected class"}
-              </CardDescription>
-            </div>
-            {!loading && (
-              <Badge variant="outline" className="text-base px-3 py-1">
-                {filteredSessions.length} {filteredSessions.length === 1 ? "session" : "sessions"}
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {!loading && availableYears.length > 0 && (
-            <div className="mb-4">
-              <Tabs value={selectedYear} onValueChange={setSelectedYear}>
-                <TabsList className="h-auto flex-wrap justify-start">
-                  <TabsTrigger value="all">All Years</TabsTrigger>
-                  {availableYears.map((year) => (
-                    <TabsTrigger key={year} value={year}>{year}</TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            </div>
-          )}
-
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : filteredSessions.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
-                <Calendar className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">
-                {selectedClass === "all" && selectedYear === "all"
-                  ? "No sessions found"
-                  : "No sessions for selected filters"}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {selectedClass === "all" && selectedYear === "all"
-                  ? "Create a new class to start taking attendance"
-                  : "No attendance sessions match the selected class/year filters."}
-              </p>
-              {selectedClass === "all" && selectedYear === "all" && <CreateClassDialog onClassCreated={loadSessions} />}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {groupedSessions.map((group) => (
-                <details key={group.groupKey} className="rounded-md border bg-card group">
-                  <summary className="list-none cursor-pointer px-4 py-3 flex items-center justify-between hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs text-primary shrink-0">S{group.subjectSem}</span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate">{group.subjectName}</p>
-                        <p className="text-xs text-muted-foreground truncate sm:hidden">{group.batchName}</p>
-                      </div>
-                      <span className="hidden sm:inline text-muted-foreground">-</span>
-                      <span className="hidden sm:inline text-sm text-muted-foreground truncate">{group.batchName}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const subjectId = group.sessions[0].subject._id;
-                          const batchId = group.sessions[0].batch._id;
-                          router.push(`/dashboard/attendance/report/${subjectId}/${batchId}`);
-                        }}
-                      >
-                        View Report
-                      </Button>
-                      <Badge variant="outline">
-                        {group.sessions.length}
-                      </Badge>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
-                    </div>
-                  </summary>
-
-                  <div className="px-4 pb-4">
-                    <div className="rounded-md border overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Time</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead className="hidden sm:table-cell">Duration</TableHead>
-                            <TableHead className="text-right"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {group.sessions.map((session) => (
-                            <TableRow
-                              key={session._id}
-                              className="hover:bg-muted/50 cursor-pointer"
-                              onClick={() => router.push(`/dashboard/attendance/session/${session._id}`)}
-                            >
-                              <TableCell>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Clock className="h-4 w-4 text-muted-foreground" />
-                                  <span>
-                                    {format(new Date(session.start_time), "MMM dd, hh:mm a")} -{" "}
-                                    {format(new Date(session.end_time), "hh:mm a")}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant={getSessionTypeBadge(session.session_type)}>
-                                  {session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                                {session.hours_taken} {session.hours_taken === 1 ? "hour" : "hours"}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    title="Share"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setShareDialogSession(session);
-                                    }}
-                                  >
-                                    <Share2 className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    title="Delete"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteDialogSession(session);
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                </details>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {!loading && groups.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {totalSessionCount} total {totalSessionCount === 1 ? "session" : "sessions"} across {groups.length} {groups.length === 1 ? "class" : "classes"}.
+        </p>
+      )}
 
       {/* Delete Confirmation Dialog */}
       {deleteDialogSession && (
@@ -617,25 +513,10 @@ export default function AttendancePage() {
       )}
 
       {/* Share Configuration Dialog */}
-      <ShareAttendanceDialog 
-        session={shareDialogSession} 
-        onClose={() => setShareDialogSession(null)} 
+      <ShareAttendanceDialog
+        session={shareDialogSession}
+        onClose={() => setShareDialogSession(null)}
       />
-
-      {/* Quick Info */}
-      <div className="pb-15">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Quick Tips</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>• Create a class session to start taking attendance</p>
-          <p>• Each session is linked to a specific batch and subject</p>
-          <p>• You can mark attendance for all students in the session</p>
-          <p>• Sessions are automatically timestamped</p>
-        </CardContent>
-      </Card>
-      </div>
     </div>
   );
 }
