@@ -16,7 +16,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { genConfig } from "react-nice-avatar";
 import NiceAvatar from "react-nice-avatar";
 import { User } from "@/lib/types/UserTypes";
-import { Badge } from "@/components/ui/badge";
 
 interface ParentProfile {
   child?: User | string;

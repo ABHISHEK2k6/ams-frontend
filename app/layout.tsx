@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import AppBootGate from "@/components/app-boot-gate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,7 +48,7 @@ export default function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
-            {children}
+            <AppBootGate>{children}</AppBootGate>
           </AuthProvider>
         </ThemeProvider>
       </body>

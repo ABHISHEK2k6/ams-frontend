@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -43,6 +50,7 @@ import {
   createNotification,
   deleteNotification,
   getStoredReadIds,
+  listAllNotifications,
   listMyNotifications,
   markNotificationRead,
   markNotificationUnread,
@@ -58,6 +66,8 @@ type UiNotification = {
   priorityLevel: string;
   notificationType: string;
   targetGroup?: string;
+  targetID?: string;
+  targetUsers?: string[];
   createdAt?: string;
 };
 
@@ -84,6 +94,13 @@ const TARGET_USER_OPTIONS = [
   { value: "principal", label: "Principal" },
   { value: "staff", label: "Staff" },
   { value: "admin", label: "Admin" }
+];
+
+const TARGET_GROUP_OPTIONS = [
+  { value: "college", label: "College" },
+  { value: "year", label: "Year" },
+  { value: "batch", label: "Batch" },
+  { value: "department", label: "Department" }
 ];
 
 const mapPriorityToApi = (value: string) => {
@@ -140,6 +157,8 @@ const normalizeNotification = (notification: NotificationRecord, index: number):
     priorityLevel,
     notificationType,
     targetGroup: notification.targetGroup,
+    targetID: notification.targetID,
+    targetUsers: notification.targetUsers,
     createdAt
   };
 };
@@ -235,7 +254,21 @@ export default function NotificationsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const canCreateNotification = user?.role === "teacher";
+  const [filterPriority, setFilterPriority] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [filterTargetGroup, setFilterTargetGroup] = useState("all");
+  const [filterAudience, setFilterAudience] = useState("all");
+  const hasActiveFilters =
+    filterPriority !== "all" || filterType !== "all" || filterTargetGroup !== "all" || filterAudience !== "all";
+  const clearFilters = () => {
+    setFilterPriority("all");
+    setFilterType("all");
+    setFilterTargetGroup("all");
+    setFilterAudience("all");
+  };
+  const canCreateNotification =
+    user?.role === "teacher" || user?.role === "admin" || user?.role === "hod" || user?.role === "principal";
+  const isStudent = user?.role === "student";
   const [formState, setFormState] = useState({
     targetGroup: "batch",
     targetID: "",
@@ -246,11 +279,15 @@ export default function NotificationsPage() {
     notificationType: "general"
   });
 
+  const isAdmin = user?.role === "admin";
+
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await listMyNotifications();
+      const response = isAdmin
+        ? (await listAllNotifications({ limit: 100 })).notifications
+        : await listMyNotifications();
       const normalized = response.map((notification, index) => normalizeNotification(notification, index));
       setNotifications(normalized);
     } catch (err) {
@@ -258,7 +295,7 @@ export default function NotificationsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!notificationsEnabled) return;
@@ -307,13 +344,17 @@ export default function NotificationsPage() {
     const query = searchQuery.trim().toLowerCase();
     return sortedNotifications.filter((notification) => {
       if (activeTab === "unread" && readIds.includes(notification.id)) return false;
+      if (filterPriority !== "all" && notification.priorityLevel.toLowerCase() !== filterPriority) return false;
+      if (filterType !== "all" && mapTypeToUi(notification.notificationType) !== filterType) return false;
+      if (filterTargetGroup !== "all" && notification.targetGroup !== filterTargetGroup) return false;
+      if (filterAudience !== "all" && !notification.targetUsers?.includes(filterAudience)) return false;
       if (!query) return true;
       return (
         notification.title.toLowerCase().includes(query) ||
         notification.message.toLowerCase().includes(query)
       );
     });
-  }, [sortedNotifications, activeTab, readIds, searchQuery]);
+  }, [sortedNotifications, activeTab, readIds, searchQuery, filterPriority, filterType, filterTargetGroup, filterAudience]);
 
   useEffect(() => {
     if (!notificationsEnabled) {
@@ -426,9 +467,15 @@ export default function NotificationsPage() {
             <Bell className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold leading-tight sm:text-2xl">Notifications</h1>
+            <h1 className="text-xl font-semibold leading-tight sm:text-2xl">
+              {isAdmin ? "All Notifications" : "Notifications"}
+            </h1>
             <p className="text-xs text-muted-foreground">
-              {unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up"}
+              {isAdmin
+                ? "Every notification across the system"
+                : unreadCount > 0
+                ? `${unreadCount} unread`
+                : "You're all caught up"}
             </p>
           </div>
         </div>
@@ -469,6 +516,74 @@ export default function NotificationsPage() {
             className="h-9 pl-8 text-sm"
           />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={filterPriority} onValueChange={setFilterPriority}>
+          <SelectTrigger size="sm" className="h-8 w-auto text-xs">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All priorities</SelectItem>
+            {PRIORITY_UI_OPTIONS.filter((option) => option.value !== "urgent").map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger size="sm" className="h-8 w-auto text-xs">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {TYPE_UI_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {!isStudent && (
+          <Select value={filterTargetGroup} onValueChange={setFilterTargetGroup}>
+            <SelectTrigger size="sm" className="h-8 w-auto text-xs">
+              <SelectValue placeholder="Audience group" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All groups</SelectItem>
+              {TARGET_GROUP_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {!isStudent && (
+          <Select value={filterAudience} onValueChange={setFilterAudience}>
+            <SelectTrigger size="sm" className="h-8 w-auto text-xs">
+              <SelectValue placeholder="Sent to" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Sent to anyone</SelectItem>
+              {TARGET_USER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        )}
       </div>
 
       {canCreateNotification && (

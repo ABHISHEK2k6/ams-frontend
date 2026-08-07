@@ -367,11 +367,11 @@ export default function AttendancePage() {
               <>
                 <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-lg font-semibold truncate">{selectedGroup.subjectName}</h2>
-                      <Badge variant="outline">S{selectedGroup.subjectSem}</Badge>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-semibold truncate min-w-0 flex-1">{selectedGroup.subjectName}</h2>
+                      <Badge variant="outline" className="shrink-0">S{selectedGroup.subjectSem}</Badge>
                       {selectedGroup.archived && (
-                        <Badge variant="secondary" className="gap-1">
+                        <Badge variant="secondary" className="gap-1 shrink-0">
                           <Archive className="h-3 w-3" /> Past semester — read-only
                         </Badge>
                       )}
